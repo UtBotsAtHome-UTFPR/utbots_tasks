@@ -8,9 +8,11 @@ import smach_ros
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import PointStamped
 from std_msgs.msg import String
+from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 import time
 import math
 import tf2_ros
+import actionlib
 
 # Initialize the rospkg instance
 rospack = rospkg.RosPack()
@@ -135,18 +137,53 @@ def find_and_follow():
     # Transform the point to the 'odom' frame
     point_in_camera = tf_buffer.transform(current_position, 'camera_link', rospy.Duration(1.0))
     
+    goal_point = rospy.wait_for_message('/selected/torsoPoint', PointStamped, 1)
+    # Point.point is representative of the point the camera sees
     # Has the orientation of goal set to be the direction from the robot to the nav_goal
-    theta = math.atan2(point.point.y[1] - point_in_camera.pose.orientation.y, point.point.x - point_in_camera.pose.orientation.x)
+    theta = math.atan2(goal_point.point.y - point_in_camera.pose.orientation.y, goal_point.point.x - point_in_camera.pose.orientation.x)
     quaternion = (math.cos(theta / 2), 0, 0, math.sin(theta / 2))
 
     goal = PoseStamped()
     goal.header.frame_id = "camera_link"
-    goal.pose.position.x = point.point.x
-    goal.pose.position.y = point.point.y
+    goal.pose.position.x = goal_point.point.x
+    goal.pose.position.y = goal_point.point.y
     goal.pose.orientation.w = quaternion[0]
     goal.pose.orientation.z = quaternion[3]
 
-    return goal
+    #return goal
+
+    # Get the midpoint from current position and goal because we don't have nav2 to truncate the path (yes, this is not smart at all)
+
+    midpoint = PoseStamped()
+    midpoint.header.frame_id = "camera_link"
+    midpoint.pose.position.x = (point_in_camera.pose.position.x + goal.pose.position.x) / 2
+    midpoint.pose.position.y = (point_in_camera.pose.position.y + goal.pose.position.y) / 2
+    midpoint.pose.position.z = (point_in_camera.pose.position.z + goal.pose.position.z) / 2
+
+    yaw = np.arctan2(goal.pose.position.y - point_in_camera.pose.position.y, goal.pose.position.x - point_in_camera.pose.position.x)
+
+    quaternion = tf.quaternion_from_euler(0, 0, yaw)
+
+    midpoint.pose.orientation.x = quaternion[0]
+    midpoint.pose.orientation.y = quaternion[1]
+    midpoint.pose.orientation.z = quaternion[2]
+    midpoint.pose.orientation.w = quaternion[3]
+
+    
+    # Keep this bit when removing the calculations for midpoint
+    nav_goal = MoveBaseGoal()
+
+    nav_goal.target_pose.header.frame_id = "camera_link"
+    nav_goal.target_pose.pose.position.x = midpoint.pose.position.x
+    nav_goal.target_pose.pose.position.y = midpoint.pose.position.y
+    nav_goal.target_pose.pose.position.z = midpoint.pose.position.z
+
+    nav_goal.target_pose.pose.orientation.x = midpoint.pose.orientation.x
+    nav_goal.target_pose.pose.orientation.y = midpoint.pose.orientation.y
+    nav_goal.target_pose.pose.orientation.z = midpoint.pose.orientation.z
+    nav_goal.target_pose.pose.orientation.w = midpoint.pose.orientation.w
+
+    return nav_goal
 
 
 # This state initiates and manages operator following
@@ -154,9 +191,9 @@ class follow_operator(smach.State):
     def __init__(self):
         smach.State.__init__(self, 
                             outcomes=['succeeded', 'aborted'])
-        self.result = "" 
-        self.pub_goal = rospy.Publisher('/bridge_navigate_to_pose/goal', PoseStamped, queue_size=1)
-        self.pub_bt = rospy.Publisher('/bridge_navigate_to_pose/bt', String, queue_size=1)
+        self.result = ""
+        self.client = actionlib.SimpleActionClient("move_base", MoveBaseAction)
+        self.client.wait_for_server()
 
     def execute(self, userdata):
 
@@ -172,7 +209,8 @@ class follow_operator(smach.State):
 
         time.sleep(1)
         
-        self.pub_goal.publish(find_and_follow())
+        self.client.send_goal(find_and_follow())
+        time.sleep(3)
 
         while(True):
             rospy.wait_for_message('bridge_navigate_to_pose/result')
@@ -183,7 +221,8 @@ class follow_operator(smach.State):
                 time.sleep(1)
                 return 'succeeded'
 
-            self.pub_goal.publish(find_and_follow())
+            self.client.send_goal(find_and_follow())
+            time.sleep(3)
 
 
 global stop_flag 

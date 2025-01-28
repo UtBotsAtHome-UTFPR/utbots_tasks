@@ -6,7 +6,7 @@ import actionlib
 import utbots_actions.msg
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from nav_msgs.msg import Odometry
-from geometry_msgs.msg import PoseWithCovarianceStamped, PoseStamped
+from geometry_msgs.msg import PoseWithCovarianceStamped
 from std_srvs.srv import Empty
 from utbots_actions.msg import YOLODetectionAction, YOLODetectionGoal, Extract3DPointAction, Extract3DPointGoal
 from smach_ros import SimpleActionState
@@ -24,6 +24,7 @@ import time
 
 '''/usb_cam/start_capture                           
 /usb_cam/stop_capture'''
+
 
 class new_face(smach.State):
     def __init__(self):
@@ -43,7 +44,7 @@ class new_face(smach.State):
 
         goal = utbots_actions.msg.new_faceGoal()
         
-        goal.n_pictures.data = 40
+        goal.n_pictures.data = 1
         goal.name.data = "Operator"
 
         try:
@@ -113,7 +114,7 @@ class recognize(smach.State):
         success = False
 
         goal = utbots_actions.msg.recognitionGoal()
-        goal.ExpectedFaces.data = 0
+        goal.ExpectedFaces.data = 1
 
         try:
             usb_cam = rospy.ServiceProxy('/usb_cam/start_capture', Empty)
@@ -185,15 +186,15 @@ class turn_around(smach.State):
         odom_msg = rospy.wait_for_message('/odom', Odometry)
 
         goal = MoveBaseGoal()
-        goal.target_pose.header.frame_id = 'odom'
+        goal.target_pose.header.frame_id = 'map'
         goal.target_pose.header.stamp = rospy.Time.now()
 
-        #goal.target_pose.pose.position.x = odom_msg.pose.pose.position.x
-        #goal.target_pose.pose.position.y = odom_msg.pose.pose.position.y
-        #goal.target_pose.pose.position.z = 0.0
+        goal.target_pose.pose.position.x = odom_msg.pose.pose.position.x
+        goal.target_pose.pose.position.y = odom_msg.pose.pose.position.y
+        goal.target_pose.pose.position.z = 0.0
+
         quaternion = np.array([odom_msg.pose.pose.orientation.w, odom_msg.pose.pose.orientation.x, odom_msg.pose.pose.orientation.y, odom_msg.pose.pose.orientation.z])
 
-        #rospy.loginfo(str(odom_msg.pose.pose.orientation.w))
 
         rotation_180_x = R.from_euler('x', 180, degrees=True).as_quat()
 
@@ -202,21 +203,15 @@ class turn_around(smach.State):
 
         # Get the result as a quaternion
         flipped_quaternion = flipped_quaternion.as_quat()
+
         goal.target_pose.pose.orientation.x = flipped_quaternion[1]
         goal.target_pose.pose.orientation.y = flipped_quaternion[2]
         goal.target_pose.pose.orientation.z = flipped_quaternion[3]
         goal.target_pose.pose.orientation.w = flipped_quaternion[0]
 
-        #self.goal_pub.publish(goal)
-        #turn_success = rospy.wait_for_message('/bridge_navigate_to_pose/result', String)
-        #print(turn_success)
-        #if turn_success.data.lower() == "succeeded":
-        #    return 'succeeded'
-        #return 'failed'
-
         self.client.send_goal(goal)
-        finished = self.client.wait_for_result()
 
+        finished = self.client.wait_for_result()
 
         if not finished: rospy.logerr("Action server not available")
         else:
@@ -258,7 +253,7 @@ class detection_log(smach.State):
             current_time = rospy.Time.now()
 
             # Create a new PDF file
-            pdf_file = f"/home/laser/catkin_ws/src/utbots_tasks/task_manager/logs/personal_recognition_{current_time}.pdf"
+            pdf_file = f"/home/laser/catkin_ws/src/utbots_tasks/task_manager/logs/object_recognition_manipulation_log_{current_time}.pdf"
             c = canvas.Canvas(pdf_file, pagesize=A4)
 
             # Insert an image (you can adjust the image size by scaling)
@@ -303,7 +298,7 @@ def main():
     rospy.init_node('face_recognition_task')
 
     global pub_text 
-    pub_text = rospy.Publisher("/utbots/voice/tts/robot_speech", String, queue_size=1)
+    pub_text = rospy.Publisher("/robot_speech", String, queue_size=1)
 
     # Create a SMACH state machine
     sm = smach.StateMachine(outcomes=['done', 'failed'])
@@ -314,8 +309,8 @@ def main():
     # Open the container
     with sm:
         # Add states to the container
-#        smach.StateMachine.add('INITIAL_POSE', init_pose(), 
-#                               transitions={'succeeded':'NEW_FACE'})
+        smach.StateMachine.add('INITIAL_POSE', init_pose(), 
+                               transitions={'succeeded':'NEW_FACE'})
         
         smach.StateMachine.add('NEW_FACE', new_face(), 
                                transitions={'new_face_added':'TRAIN',
