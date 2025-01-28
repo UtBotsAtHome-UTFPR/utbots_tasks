@@ -1,18 +1,18 @@
 poses:
   - nametag: "shelf"
-    header:
-      seq: 1
-      stamp:
-        secs: 1623423423
-        nsecs: 123456789
+    header: 
+      seq: 369
+      stamp: 
+        secs: 1738094757
+        nsecs: 887504069
       frame_id: "map"
-    pose:
-      position:
-        x: 0.5
-        y: -0.5
-        z: 0.0
-      orientation:
-        x: 0.0
-        y: 0.0
-        z: 0.0
-        w: 1.0
+    pose: 
+        position: 
+          x: 0.2958020787013402
+          y: 0.938925257071522
+          z: 0.0
+        orientation: 
+          x: 0.0
+          y: 0.0
+          z: 0.6755280259854818
+          w: 0.7373343109527444

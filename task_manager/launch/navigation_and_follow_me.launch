@@ -2,8 +2,10 @@
     <node name="ros_tts_mimic" pkg="utbots_tts" type="ros_tts_mimic.py" />
     <node name="vad_node" pkg="vad_silero_ros" type="vad_node" output="screen" /> 
     <node name="whisper_node" pkg="whisper_cpp_ros" type="whisper_node" output="log"/>
-    <include file="$(find mediapipe_track/launch/body_pose_and_points.launch)">
-        <remap from="/camera/rgb/image_raw" to="/camera/rgb/image_color"/>
-        <remap from="/camera/depth_registered/image_raw" to=""
+    <!-- <include file="$(find mediapipe_track)/launch/body_pose_and_points.launch"> -->
+    <remap to="/camera/depth_registered/image_raw" from="/camera/aligned_depth_to_color/image_raw"/>
+    <remap to="/camera/rgb/image_raw" from="/camera/color/image_raw"/>
+    <include file="$(find realsense2_camera)/launch/rs_aligned_depth.launch">
     </include>
+    <node pkg="tf2_ros" type="static_transform_publisher" name="cam_base_link" args="0.35 0.0 0.90 0.0 0.0 0.0 base_link camera_link"/>
 </launch>

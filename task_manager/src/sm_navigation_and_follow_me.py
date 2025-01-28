@@ -192,20 +192,23 @@ class follow_operator(smach.State):
         smach.State.__init__(self, 
                             outcomes=['succeeded', 'aborted'])
         self.result = ""
+
+        rospy.loginfo("Waiting for nav actions")
         self.client = actionlib.SimpleActionClient("move_base", MoveBaseAction)
         self.client.wait_for_server()
+        rospy.loginfo("Nav actions up")
 
     def execute(self, userdata):
 
         rospy.loginfo('Executing state follow_operator')
         stop_flag = False
 
-        point = rospy.wait_for_message("selected/torsoPoint", PointStamped)
+        point = rospy.wait_for_message("/selected/torsoPoint", PointStamped)
 
 
-        bt = String()
-        bt.data = "follow_point"
-        self.pub_bt(bt)
+        #bt = String()
+        #bt.data = "follow_point"
+        #self.pub_bt(bt)
 
         time.sleep(1)
         
@@ -213,13 +216,6 @@ class follow_operator(smach.State):
         time.sleep(3)
 
         while(True):
-            rospy.wait_for_message('bridge_navigate_to_pose/result')
-
-            if stop_flag:
-                bt.data = ""
-                self.pub_bt(bt)
-                time.sleep(1)
-                return 'succeeded'
 
             self.client.send_goal(find_and_follow())
             time.sleep(3)

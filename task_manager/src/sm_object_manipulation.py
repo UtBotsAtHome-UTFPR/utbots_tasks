@@ -11,10 +11,13 @@ import cv2
 from std_msgs.msg import String
 from geometry_msgs.msg import PoseStamped
 from utbots_actions.msg import YOLODetectionAction, YOLODetectionGoal, Extract3DPointAction
+from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from smach_ros import SimpleActionState
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import inch
+import numpy as np
+
 
 global bboxes
 bboxes = None
@@ -70,20 +73,43 @@ class go_to_shelf(smach.State):
 
         rospy.loginfo('Executing state go_to_shelf')
 
+        self.client = actionlib.SimpleActionClient("move_base", MoveBaseAction)
+        self.client.wait_for_server()
+
+
         try:
             # Sleep briefly to ensure the message is sent
             rospy.sleep(2)
             rospy.loginfo("Publish waypoint")
-            self.pub.publish(retrieve_waypoint("shelf"))
+            
+            odom_msg = retrieve_waypoint("shelf")
 
-            self.result = rospy.wait_for_message('/bridge_navigate_to_pose/result', String)
-            print(self.result)
-            if self.result.data == "Succeeded":
-                self.result.data = ""
-                return 'succeeded'
+            goal = MoveBaseGoal()
+            goal.target_pose.header.frame_id = 'odom'
+            goal.target_pose.header.stamp = rospy.Time.now()
+
+            goal.target_pose.pose.position.x = odom_msg.pose.position.x
+            goal.target_pose.pose.position.y = odom_msg.pose.position.y
+            goal.target_pose.pose.position.z = 0.0
+
+            quaternion = np.array([odom_msg.pose.orientation.w, odom_msg.pose.orientation.x, odom_msg.pose.orientation.y, odom_msg.pose.orientation.z])
+
+            goal.target_pose.pose.orientation.x = quaternion[1]
+            goal.target_pose.pose.orientation.y = quaternion[2]
+            goal.target_pose.pose.orientation.z = quaternion[3]
+            goal.target_pose.pose.orientation.w = quaternion[0]
+
+            self.client.send_goal(goal)
+
+            finished = self.client.wait_for_result()
+
+            if not finished: rospy.logerr("Action server not available")
             else:
-                self.result.data = ""
-                return 'aborted'
+                rospy.loginfo(self.client.get_result())
+
+            if self.client.get_state() == actionlib.GoalStatus.SUCCEEDED:
+                return 'succeeded'
+            return 'aborted'
         
         except rospy.ROSInterruptException:
             return 'aborted'
