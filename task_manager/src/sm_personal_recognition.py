@@ -113,7 +113,7 @@ class recognize(smach.State):
         success = False
 
         goal = utbots_actions.msg.recognitionGoal()
-        goal.ExpectedFaces.data = 1
+        goal.ExpectedFaces.data = 0
 
         try:
             usb_cam = rospy.ServiceProxy('/usb_cam/start_capture', Empty)
@@ -175,12 +175,8 @@ class turn_around(smach.State):
 
         rospy.loginfo('Checking navigation action')
 
-        self.goal_pub = rospy.Publisher('/bridge_navigate_to_pose/goal', PoseStamped, queue_size=1)
-
-        
-
-        #self.client = actionlib.SimpleActionClient("move_base", MoveBaseAction)
-        #self.client.wait_for_server()
+        self.client = actionlib.SimpleActionClient("move_base", MoveBaseAction)
+        self.client.wait_for_server()
 
     def execute(self, userdata):
 
@@ -188,16 +184,16 @@ class turn_around(smach.State):
 
         odom_msg = rospy.wait_for_message('/odom', Odometry)
 
-        goal = PoseStamped()
-        goal.header.frame_id = 'map'
-        goal.header.stamp = rospy.Time.now()
+        goal = MoveBaseGoal()
+        goal.target_pose.header.frame_id = 'odom'
+        goal.target_pose.header.stamp = rospy.Time.now()
 
-        goal.pose.position.x = odom_msg.pose.pose.position.x
-        goal.pose.position.y = odom_msg.pose.pose.position.y
-        goal.pose.position.z = 0.0
-
+        #goal.target_pose.pose.position.x = odom_msg.pose.pose.position.x
+        #goal.target_pose.pose.position.y = odom_msg.pose.pose.position.y
+        #goal.target_pose.pose.position.z = 0.0
         quaternion = np.array([odom_msg.pose.pose.orientation.w, odom_msg.pose.pose.orientation.x, odom_msg.pose.pose.orientation.y, odom_msg.pose.pose.orientation.z])
 
+        #rospy.loginfo(str(odom_msg.pose.pose.orientation.w))
 
         rotation_180_x = R.from_euler('x', 180, degrees=True).as_quat()
 
@@ -206,30 +202,29 @@ class turn_around(smach.State):
 
         # Get the result as a quaternion
         flipped_quaternion = flipped_quaternion.as_quat()
+        goal.target_pose.pose.orientation.x = flipped_quaternion[1]
+        goal.target_pose.pose.orientation.y = flipped_quaternion[2]
+        goal.target_pose.pose.orientation.z = flipped_quaternion[3]
+        goal.target_pose.pose.orientation.w = flipped_quaternion[0]
 
-        goal.pose.orientation.x = flipped_quaternion[1]
-        goal.pose.orientation.y = flipped_quaternion[2]
-        goal.pose.orientation.z = flipped_quaternion[3]
-        goal.pose.orientation.w = flipped_quaternion[0]
-
-        self.goal_pub.publish(goal)
-        turn_success = rospy.wait_for_message('/bridge_navigate_to_pose/result', String)
-        print(turn_success)
-        if turn_success.data.lower() == "succeeded":
-            return 'succeeded'
-        return 'failed'
-
-        #self.client.send_goal(goal)
-        #finished = self.client.wait_for_result()
-
-
-        #if not finished: rospy.logerr("Action server not available")
-        #else:
-        #    rospy.loginfo(self.client.get_result())
-
-        #if self.client.get_state() == actionlib.GoalStatus.SUCCEEDED:
+        #self.goal_pub.publish(goal)
+        #turn_success = rospy.wait_for_message('/bridge_navigate_to_pose/result', String)
+        #print(turn_success)
+        #if turn_success.data.lower() == "succeeded":
         #    return 'succeeded'
         #return 'failed'
+
+        self.client.send_goal(goal)
+        finished = self.client.wait_for_result()
+
+
+        if not finished: rospy.logerr("Action server not available")
+        else:
+            rospy.loginfo(self.client.get_result())
+
+        if self.client.get_state() == actionlib.GoalStatus.SUCCEEDED:
+            return 'succeeded'
+        return 'failed'
 
 global bboxes
 bboxes = None
