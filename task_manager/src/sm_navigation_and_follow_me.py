@@ -137,6 +137,9 @@ def find_and_follow():
 
     # Transform the point to the 'odom' frame
     object_stamped = PoseStamped()
+
+    object_stamped.header.frame_id = current_position.header.frame_id
+
     object_stamped.pose.position.x = current_position.pose.pose.position.x
     object_stamped.pose.position.y = current_position.pose.pose.position.y
     object_stamped.pose.position.z = current_position.pose.pose.position.z
@@ -145,6 +148,9 @@ def find_and_follow():
     object_stamped.pose.orientation.y = current_position.pose.pose.orientation.y
     object_stamped.pose.orientation.z = current_position.pose.pose.orientation.z
     object_stamped.pose.orientation.w = current_position.pose.pose.orientation.w
+
+    rospy.loginfo(object_stamped)
+    rospy.loginfo(current_position)
 
     point_in_camera = tf_buffer.transform(object_stamped, 'camera_link', rospy.Duration(1.0))
     
@@ -214,7 +220,7 @@ class follow_operator(smach.State):
         rospy.loginfo('Executing state follow_operator')
         stop_flag = False
 
-        point = rospy.wait_for_message("/selected/torsoPoint", PointStamped)
+        #point = rospy.wait_for_message("/selected/torsoPoint", PointStamped)
 
 
         #bt = String()
@@ -222,8 +228,8 @@ class follow_operator(smach.State):
         #self.pub_bt(bt)
 
         time.sleep(1)
-        
-        self.client.send_goal(find_and_follow())
+        find_and_follow()
+        self.client.send_goal()
         time.sleep(3)
 
         while(True):
