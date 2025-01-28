@@ -9,6 +9,7 @@ from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import PointStamped
 from std_msgs.msg import String
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
+from nav_msgs.msg import Odometry
 import time
 import math
 import tf2_ros
@@ -120,7 +121,7 @@ class go_to_waypoint(smach.State):
 
 def find_and_follow():
     
-    current_position = rospy.wait_for_message('/odom', PoseStamped, 10)
+    current_position = rospy.wait_for_message('/odom', Odometry, 10)
 
     tf_buffer = tf2_ros.Buffer()
     listener = tf2_ros.TransformListener(tf_buffer)
@@ -135,7 +136,17 @@ def find_and_follow():
     
 
     # Transform the point to the 'odom' frame
-    point_in_camera = tf_buffer.transform(current_position, 'camera_link', rospy.Duration(1.0))
+    object_stamped = PoseStamped()
+    object_stamped.pose.position.x = current_position.pose.pose.position.x
+    object_stamped.pose.position.y = current_position.pose.pose.position.y
+    object_stamped.pose.position.z = current_position.pose.pose.position.z
+
+    object_stamped.pose.orientation.x = current_position.pose.pose.orientation.x
+    object_stamped.pose.orientation.y = current_position.pose.pose.orientation.y
+    object_stamped.pose.orientation.z = current_position.pose.pose.orientation.z
+    object_stamped.pose.orientation.w = current_position.pose.pose.orientation.w
+
+    point_in_camera = tf_buffer.transform(object_stamped, 'camera_link', rospy.Duration(1.0))
     
     goal_point = rospy.wait_for_message('/selected/torsoPoint', PointStamped, 1)
     # Point.point is representative of the point the camera sees
