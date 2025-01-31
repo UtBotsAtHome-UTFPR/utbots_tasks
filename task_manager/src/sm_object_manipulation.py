@@ -85,7 +85,7 @@ class go_to_shelf(smach.State):
             odom_msg = retrieve_waypoint("shelf")
 
             goal = MoveBaseGoal()
-            goal.target_pose.header.frame_id = 'odom'
+            goal.target_pose.header.frame_id = 'map'
             goal.target_pose.header.stamp = rospy.Time.now()
 
             goal.target_pose.pose.position.x = odom_msg.pose.position.x
@@ -233,11 +233,11 @@ def main():
 
     # Open the container
     with sm:
-        # State that goes to the shelf
-        smach.StateMachine.add('GO_TO_SHELF', 
-                                go_to_shelf(),
-                                transitions={'succeeded': 'GET_DETECTION',
-                                            'aborted': 'failed'})
+        # # State that goes to the shelf
+        # smach.StateMachine.add('GO_TO_SHELF', 
+        #                         go_to_shelf(),
+        #                         transitions={'succeeded': 'GET_DETECTION',
+        #                                     'aborted': 'failed'})
 
         # State that gets the object detections from YOLO
         smach.StateMachine.add('GET_DETECTION', 
