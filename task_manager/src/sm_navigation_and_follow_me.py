@@ -12,8 +12,11 @@ from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from nav_msgs.msg import Odometry
 import time
 import math
-import tf2_ros
+from tf2_ros import Buffer, TransformListener
 import actionlib
+from tf2_geometry_msgs import do_transform_point
+import numpy as np
+import tf.transformations as tf
 
 # Initialize the rospkg instance
 rospack = rospkg.RosPack()
@@ -123,7 +126,54 @@ def find_and_follow():
     
     current_position = rospy.wait_for_message('/odom', Odometry, 10)
 
-    tf_buffer = tf2_ros.Buffer()
+
+    goal_point_camera = rospy.wait_for_message('/selected/torsoPoint', PointStamped, 10)
+
+    tf_buffer = Buffer()
+    tf_listener = TransformListener(tf_buffer)
+    try:
+        transform = tf_buffer.lookup_transform(
+                'odom',  # Target frame
+                'camera_link',#goal_point_camera.header.frame_id,
+                rospy.Time(),
+                timeout = rospy.Duration(10)
+            )
+        
+
+        goal_point_odom = do_transform_point(goal_point_camera, transform)
+
+        rospy.loginfo(f'Transformed Pose: {goal_point_odom}')
+            
+    except Exception as e:
+        rospy.loginfo(f'Failed to transform pose: {e}')
+        return False
+
+    midpoint = MoveBaseGoal()
+    midpoint.target_pose.header.frame_id = "odom"
+    midpoint.target_pose.pose.position.x = (current_position.pose.pose.position.x + goal_point_odom.point.x) / 2
+    midpoint.target_pose.pose.position.y = (current_position.pose.pose.position.y + goal_point_odom.point.y) / 2
+    midpoint.target_pose.pose.position.z = (current_position.pose.pose.position.z + goal_point_odom.point.z) / 2
+
+    yaw = np.arctan2(goal_point_odom.point.y - current_position.pose.pose.position.y, goal_point_odom.point.x - current_position.pose.pose.position.x)
+
+    # Convert yaw to quaternion
+    quaternion = tf.quaternion_from_euler(0, 0, yaw)
+
+    #theta = math.atan2(goal_point_odom.point.y - current_position.pose.pose.orientation.y, goal_point_odom.point.x - current_position.pose.pose.orientation.x)
+    #quaternion = (math.cos(theta / 2), 0, 0, math.sin(theta / 2))
+
+    midpoint.target_pose.pose.orientation.x = quaternion[0]
+    midpoint.target_pose.pose.orientation.y = quaternion[1]
+    midpoint.target_pose.pose.orientation.z = quaternion[2]
+    midpoint.target_pose.pose.orientation.w = quaternion[3]
+
+    return midpoint
+
+
+
+
+
+    '''tf_buffer = tf2_ros.Buffer()
     listener = tf2_ros.TransformListener(tf_buffer)
 
     # Wait for the transform to become available
@@ -200,7 +250,7 @@ def find_and_follow():
     nav_goal.target_pose.pose.orientation.z = midpoint.pose.orientation.z
     nav_goal.target_pose.pose.orientation.w = midpoint.pose.orientation.w
 
-    return nav_goal
+    return nav_goal'''
 
 
 # This state initiates and manages operator following
@@ -229,13 +279,18 @@ class follow_operator(smach.State):
 
         time.sleep(1)
         find_and_follow()
-        self.client.send_goal()
+        #self.client.send_goal()
         time.sleep(3)
 
         while(True):
+            goal = find_and_follow()
+            if goal is not False:
+                self.client.send_goal(goal)
+            if rospy.is_shutdown():
+                break
+            time.sleep(10)
 
-            self.client.send_goal(find_and_follow())
-            time.sleep(3)
+        return "succeeded"
 
 
 global stop_flag 
