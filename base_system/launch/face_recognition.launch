@@ -1,4 +1,0 @@
-<launch>
-    <include file="$(find freenect_launch)/launch/freenect.launch"/>
-    <include file="$(find utbots_face_recognition)/launch/face_recognition.launch"/>
-</launch>

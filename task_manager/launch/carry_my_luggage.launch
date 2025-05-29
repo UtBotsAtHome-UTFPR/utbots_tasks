@@ -1,8 +1,0 @@
-<launch>
-    <include file="$(find base_system)/launch/navigation.launch" />
-    <include file="$(find base_system)/launch/poseandpoints_kinectjetson.launch" />
-    <include file="$(find base_system)/launch/voice_emotion.launch" />
-    <include file="$(find nlu_ros)/launch/nlu_node.launch" />
-    <include file="$(find task_manager)/launch/carry_my_luggage.launch"/>
-    <node pkg="task_manager" type="follow_human.py" name="follow_human_node"/>
-</launch>

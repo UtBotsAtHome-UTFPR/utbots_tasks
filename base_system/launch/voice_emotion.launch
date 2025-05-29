@@ -1,5 +1,0 @@
-<launch>
-    <include file="$(find base_system)/launch/voice_stt.launch" />
-    <include file="$(find base_system)/launch/voice_tts.launch" />
-    <include file="$(find display_emotions)/launch/display_emotions.launch" />
-</launch>

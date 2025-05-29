@@ -1,7 +1,0 @@
-<launch>
-    <include file="$(find freenect_launch)/launch/freenect.launch" >
-        <arg name="depth_registration" value="true"/>
-    </include>
-    <include file="$(find darknet_ros)/launch/darknet_ros_jetson_nano.launch" />
-    <node type="rviz" name="rviz" pkg="rviz" args="-d $(find base_system)/rviz.rviz" />
-</launch>

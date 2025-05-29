@@ -4,89 +4,67 @@ import rospy
 import smach
 import smach_ros
 import actionlib
-from cv_bridge import CvBridge
-import cv2
 from utbots_actions.msg import InterpretNLUAction, InterpretNLUGoal
 from smach_ros import SimpleActionState
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
-from reportlab.lib.units import inch
+from fpdf import FPDF
 
-# Initialize CvBridge to convert ROS image message to OpenCV image
-bridge = CvBridge()
+number_of_questions = 6
 
-# This state will send a nav goal to the place the objects are located
-# class go_to_shelf(smach.State):
-    # def __init__(self):
-    #     smach.State.__init__(self, 
-    #                         outcomes=['reached', 'all_answered','aborted'],
-    #                         input_keys=['waypoint'])
+# This state will count the questions
+class question_counter(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, 
+                            outcomes=['action_understood', 'all_answered','aborted'],
+                            input_keys=['question_counter'],
+                            output_keys=['question_counter_out'])
 
-    # def execute(self, userdata):
+    def execute(self, userdata):
 
-    #     rospy.loginfo('Executing state question_counter')
+        rospy.loginfo('Executing state question_counter')
 
-    #     if userdata.question_counter >= number_of_questions:
-    #         return 'all_answered'
+        if userdata.question_counter >= number_of_questions:
+            return 'all_answered'
 
-    #     try:
-    #         userdata.question_counter_out = userdata.question_counter + 1
-    #         return 'action_understood'
+        try:
+            userdata.question_counter_out = userdata.question_counter + 1
+            return 'action_understood'
         
-    #     except rospy.ROSInterruptException:
-    #         return 'aborted'
+        except rospy.ROSInterruptException:
+            return 'aborted'
 
-# This state will save the labeled image with objects detected by YOLOv8
-class detection_log(smach.State):
+# This state will log the answers
+class answers_log(smach.State):
     def __init__(self):
         smach.State.__init__(self, 
                             outcomes=['log_saved', 'aborted'],
-                            input_keys=['labeled_img', 'bboxes'])        
+                            input_keys=['nlu_input', 'nlu_output'])        
 
     def execute(self, userdata):
+        global question_number, log
         
-        rospy.loginfo('Executing state get_objects_bbox')
+        rospy.loginfo('Executing state answers_log')
 
         try:
-            log_img = userdata.labeled_img
-            bboxes = userdata.bboxes.bounding_boxes
+            question = userdata.nlu_input.data
+            answer = userdata.nlu_output.data
 
-            # Convert the ROS Image message to an OpenCV image
-            cv_image = bridge.imgmsg_to_cv2(log_img, desired_encoding="bgr8")
+            question = question.replace("data: ", "")
+            answer = answer.replace("data: ", "")
 
-            # Save the image as a temporary file (as reportlab requires an image file)
-            image_filename = "/tmp/log_img.jpg"
-            cv2.imwrite(image_filename, cv_image)
+            rospy.loginfo(f"Question: {question}")
+            rospy.loginfo(f"Answer: {answer}")
 
-            current_time = rospy.Time.now()
+            question_log =  str(question_number) + '- ' + question + '\n' + answer + '\n'
+            rospy.loginfo(f"Question log: {question_log}")
 
-            # Create a new PDF file
-            pdf_file = f"/home/laser/catkin_ws/src/utbots_tasks/task_manager/logs/object_recognition_manipulation_log_{current_time}.pdf"
-            c = canvas.Canvas(pdf_file, pagesize=A4)
-
-            # Insert an image (you can adjust the image size by scaling)
-            image_path = "/tmp/log_img.jpg"
-            c.drawImage(image_path, x=100, y=600, width=4*inch, height=3*inch)
-
-            # Add some text
-            c.setFont("Helvetica", 12)
-
-            text_height = 800
-            for bbox in bboxes:
-                text = f"- {bbox}"
-                c.drawString(100, text_height, text)
-                text_height += 200
-
-            # Finalize the PDF file
-            c.showPage()
-            c.save()
+            question_number += 1
+            log += question_log
             
             return 'log_saved'
         
         except rospy.ROSInterruptException:
             return 'aborted'
 
-# outcomes=['detected', 'no_detected'],
 
 def main():
 
