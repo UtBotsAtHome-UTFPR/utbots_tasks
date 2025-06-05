@@ -1,0 +1,84 @@
+[0.000000] (-) TimerEvent: {}
+[0.001257] (utbots_tasks) JobQueued: {'identifier': 'utbots_tasks', 'dependencies': OrderedDict()}
+[0.001406] (utbots_tasks) JobStarted: {'identifier': 'utbots_tasks'}
+[0.098507] (-) TimerEvent: {}
+[0.201087] (-) TimerEvent: {}
+[0.308915] (-) TimerEvent: {}
+[0.409849] (-) TimerEvent: {}
+[0.510878] (-) TimerEvent: {}
+[0.611596] (-) TimerEvent: {}
+[0.712288] (-) TimerEvent: {}
+[0.813040] (-) TimerEvent: {}
+[0.913879] (-) TimerEvent: {}
+[1.015019] (-) TimerEvent: {}
+[1.115630] (-) TimerEvent: {}
+[1.216320] (-) TimerEvent: {}
+[1.316916] (-) TimerEvent: {}
+[1.417507] (-) TimerEvent: {}
+[1.518121] (-) TimerEvent: {}
+[1.618732] (-) TimerEvent: {}
+[1.719305] (-) TimerEvent: {}
+[1.819818] (-) TimerEvent: {}
+[1.920328] (-) TimerEvent: {}
+[2.020801] (-) TimerEvent: {}
+[2.121276] (-) TimerEvent: {}
+[2.221720] (-) TimerEvent: {}
+[2.322172] (-) TimerEvent: {}
+[2.422618] (-) TimerEvent: {}
+[2.523065] (-) TimerEvent: {}
+[2.623589] (-) TimerEvent: {}
+[2.724008] (-) TimerEvent: {}
+[2.824491] (-) TimerEvent: {}
+[2.892261] (utbots_tasks) Command: {'cmd': ['/usr/bin/python3', '-W', 'ignore:setup.py install is deprecated', '-W', 'ignore:easy_install command is deprecated', 'setup.py', 'egg_info', '--egg-base', '../build/utbots_tasks', 'build', '--build-base', '/home/robo/david_ws/src/utbots_tasks/build/utbots_tasks/build', 'install', '--record', '/home/robo/david_ws/src/utbots_tasks/build/utbots_tasks/install.log', '--single-version-externally-managed', 'install_data'], 'cwd': '/home/robo/david_ws/src/utbots_tasks/utbots_tasks', 'env': {'GJS_DEBUG_TOPICS': 'JS ERROR;JS LOG', 'LESSOPEN': '| /usr/bin/lesspipe %s', 'USER': 'robo', 'LC_TIME': 'pt_BR.UTF-8', 'XDG_SESSION_TYPE': 'wayland', 'GIT_ASKPASS': '/usr/share/code/resources/app/extensions/git/dist/askpass.sh', 'SHLVL': '1', 'LD_LIBRARY_PATH': '/opt/ros/humble/opt/zenoh_cpp_vendor/lib:/usr/lib/x86_64-linux-gnu/gazebo-11/plugins:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/lib', 'HOME': '/home/robo', 'CHROME_DESKTOP': 'code.desktop', 'OLDPWD': '/home/robo/david_ws', 'TERM_PROGRAM_VERSION': '1.99.3', 'DESKTOP_SESSION': 'ubuntu', 'GIO_LAUNCHED_DESKTOP_FILE': '/usr/share/applications/code.desktop', 'ROS_PYTHON_VERSION': '3', 'BASE_MODEL': 'hestia', 'GNOME_SHELL_SESSION_MODE': 'ubuntu', 'GTK_MODULES': 'gail:atk-bridge', 'VSCODE_GIT_ASKPASS_MAIN': '/usr/share/code/resources/app/extensions/git/dist/askpass-main.js', 'LC_MONETARY': 'pt_BR.UTF-8', 'VSCODE_GIT_ASKPASS_NODE': '/usr/share/code/code', 'MANAGERPID': '1635', 'LC_CTYPE': 'pt_BR.UTF-8', 'PYDEVD_DISABLE_FILE_VALIDATION': '1', 'SYSTEMD_EXEC_PID': '1837', 'BUNDLED_DEBUGPY_PATH': '/home/robo/.vscode/extensions/ms-python.debugpy-2025.8.0-linux-x64/bundled/libs/debugpy', 'DBUS_SESSION_BUS_ADDRESS': 'unix:path=/run/user/1000/bus', 'COLORTERM': 'truecolor', 'GIO_LAUNCHED_DESKTOP_FILE_PID': '4190', 'IM_CONFIG_PHASE': '1', 'WAYLAND_DISPLAY': 'wayland-0', 'ROS_DISTRO': 'humble', 'LOGNAME': 'robo', 'JOURNAL_STREAM': '8:13231', '_': '/usr/bin/colcon', 'ROS_VERSION': '2', 'XDG_SESSION_CLASS': 'user', 'GCM_CREDENTIAL_STORE': 'secretservice', 'USERNAME': 'robo', 'TERM': 'xterm-256color', 'GNOME_DESKTOP_SESSION_ID': 'this-is-deprecated', 'ROS_LOCALHOST_ONLY': '0', 'PATH': '/opt/ros/humble/bin:/home/robo/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin:/home/robo/.vscode/extensions/ms-python.debugpy-2025.8.0-linux-x64/bundled/scripts/noConfigScripts', 'SESSION_MANAGER': 'local/robo-Vostro-3480:@/tmp/.ICE-unix/1801,unix/robo-Vostro-3480:/tmp/.ICE-unix/1801', 'INVOCATION_ID': '59acdcce169844bbb8d1c73cba38ddde', 'XDG_MENU_PREFIX': 'gnome-', 'LC_ADDRESS': 'pt_BR.UTF-8', 'GNOME_SETUP_DISPLAY': ':1', 'XDG_RUNTIME_DIR': '/run/user/1000', 'GDK_BACKEND': 'x11', 'DISPLAY': ':0', 'VSCODE_DEBUGPY_ADAPTER_ENDPOINTS': '/home/robo/.vscode/extensions/ms-python.debugpy-2025.8.0-linux-x64/.noConfigDebugAdapterEndpoints/endpoint-b131e63c56ad5d99.txt', 'LANG': 'en_US.UTF-8', 'XDG_CURRENT_DESKTOP': 'Unity', 'LC_TELEPHONE': 'pt_BR.UTF-8', 'XMODIFIERS': '@im=ibus', 'XDG_SESSION_DESKTOP': 'ubuntu', 'XAUTHORITY': '/run/user/1000/.mutter-Xwaylandauth.SVYR72', 'LS_COLORS': 'rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:mi=00:su=37;41:sg=30;43:ca=30;41:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.tar=01;31:*.tgz=01;31:*.arc=01;31:*.arj=01;31:*.taz=01;31:*.lha=01;31:*.lz4=01;31:*.lzh=01;31:*.lzma=01;31:*.tlz=01;31:*.txz=01;31:*.tzo=01;31:*.t7z=01;31:*.zip=01;31:*.z=01;31:*.dz=01;31:*.gz=01;31:*.lrz=01;31:*.lz=01;31:*.lzo=01;31:*.xz=01;31:*.zst=01;31:*.tzst=01;31:*.bz2=01;31:*.bz=01;31:*.tbz=01;31:*.tbz2=01;31:*.tz=01;31:*.deb=01;31:*.rpm=01;31:*.jar=01;31:*.war=01;31:*.ear=01;31:*.sar=01;31:*.rar=01;31:*.alz=01;31:*.ace=01;31:*.zoo=01;31:*.cpio=01;31:*.7z=01;31:*.rz=01;31:*.cab=01;31:*.wim=01;31:*.swm=01;31:*.dwm=01;31:*.esd=01;31:*.jpg=01;35:*.jpeg=01;35:*.mjpg=01;35:*.mjpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.svg=01;35:*.svgz=01;35:*.mng=01;35:*.pcx=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.m2v=01;35:*.mkv=01;35:*.webm=01;35:*.webp=01;35:*.ogm=01;35:*.mp4=01;35:*.m4v=01;35:*.mp4v=01;35:*.vob=01;35:*.qt=01;35:*.nuv=01;35:*.wmv=01;35:*.asf=01;35:*.rm=01;35:*.rmvb=01;35:*.flc=01;35:*.avi=01;35:*.fli=01;35:*.flv=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.yuv=01;35:*.cgm=01;35:*.emf=01;35:*.ogv=01;35:*.ogx=01;35:*.aac=00;36:*.au=00;36:*.flac=00;36:*.m4a=00;36:*.mid=00;36:*.midi=00;36:*.mka=00;36:*.mp3=00;36:*.mpc=00;36:*.ogg=00;36:*.ra=00;36:*.wav=00;36:*.oga=00;36:*.opus=00;36:*.spx=00;36:*.xspf=00;36:', 'VSCODE_GIT_IPC_HANDLE': '/run/user/1000/vscode-git-e01b739eb2.sock', 'TERM_PROGRAM': 'vscode', 'SSH_AGENT_LAUNCHER': 'gnome-keyring', 'SSH_AUTH_SOCK': '/run/user/1000/keyring/ssh', 'AMENT_PREFIX_PATH': '/opt/ros/humble', 'ORIGINAL_XDG_CURRENT_DESKTOP': 'ubuntu:GNOME', 'SHELL': '/bin/bash', 'LC_NAME': 'pt_BR.UTF-8', 'QT_ACCESSIBILITY': '1', 'GDMSESSION': 'ubuntu', 'LESSCLOSE': '/usr/bin/lesspipe %s %s', 'LC_MEASUREMENT': 'pt_BR.UTF-8', 'GJS_DEBUG_OUTPUT': 'stderr', 'LC_IDENTIFICATION': 'pt_BR.UTF-8', 'VSCODE_GIT_ASKPASS_EXTRA_ARGS': '', 'QT_IM_MODULE': 'ibus', 'PWD': '/home/robo/david_ws/src/utbots_tasks/build/utbots_tasks', 'XDG_CONFIG_DIRS': '/etc/xdg/xdg-ubuntu:/etc/xdg', 'XDG_DATA_DIRS': '/usr/share/ubuntu:/usr/local/share/:/usr/share/:/var/lib/snapd/desktop', 'PYTHONPATH': '/home/robo/david_ws/src/utbots_tasks/build/utbots_tasks/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/robo/david_ws/src/utbots_tasks/install/utbots_tasks/lib/python3.10/site-packages:/opt/ros/humble/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages', 'LC_NUMERIC': 'pt_BR.UTF-8', 'LC_PAPER': 'pt_BR.UTF-8', 'COLCON': '1'}, 'shell': False}
+[2.924701] (-) TimerEvent: {}
+[3.025305] (-) TimerEvent: {}
+[3.125779] (-) TimerEvent: {}
+[3.226275] (-) TimerEvent: {}
+[3.326737] (-) TimerEvent: {}
+[3.427185] (-) TimerEvent: {}
+[3.527650] (-) TimerEvent: {}
+[3.628177] (-) TimerEvent: {}
+[3.728629] (-) TimerEvent: {}
+[3.829093] (-) TimerEvent: {}
+[3.904128] (utbots_tasks) StdoutLine: {'line': b'running egg_info\n'}
+[3.906249] (utbots_tasks) StdoutLine: {'line': b'creating ../build/utbots_tasks/utbots_tasks.egg-info\n'}
+[3.906758] (utbots_tasks) StdoutLine: {'line': b'writing ../build/utbots_tasks/utbots_tasks.egg-info/PKG-INFO\n'}
+[3.907301] (utbots_tasks) StdoutLine: {'line': b'writing dependency_links to ../build/utbots_tasks/utbots_tasks.egg-info/dependency_links.txt\n'}
+[3.907763] (utbots_tasks) StdoutLine: {'line': b'writing entry points to ../build/utbots_tasks/utbots_tasks.egg-info/entry_points.txt\n'}
+[3.908254] (utbots_tasks) StdoutLine: {'line': b'writing requirements to ../build/utbots_tasks/utbots_tasks.egg-info/requires.txt\n'}
+[3.908660] (utbots_tasks) StdoutLine: {'line': b'writing top-level names to ../build/utbots_tasks/utbots_tasks.egg-info/top_level.txt\n'}
+[3.909042] (utbots_tasks) StdoutLine: {'line': b"writing manifest file '../build/utbots_tasks/utbots_tasks.egg-info/SOURCES.txt'\n"}
+[3.913187] (utbots_tasks) StdoutLine: {'line': b"reading manifest file '../build/utbots_tasks/utbots_tasks.egg-info/SOURCES.txt'\n"}
+[3.915089] (utbots_tasks) StdoutLine: {'line': b"writing manifest file '../build/utbots_tasks/utbots_tasks.egg-info/SOURCES.txt'\n"}
+[3.915721] (utbots_tasks) StdoutLine: {'line': b'running build\n'}
+[3.916248] (utbots_tasks) StdoutLine: {'line': b'running build_py\n'}
+[3.916509] (utbots_tasks) StdoutLine: {'line': b'creating /home/robo/david_ws/src/utbots_tasks/build/utbots_tasks/build\n'}
+[3.916795] (utbots_tasks) StdoutLine: {'line': b'creating /home/robo/david_ws/src/utbots_tasks/build/utbots_tasks/build/lib\n'}
+[3.917118] (utbots_tasks) StdoutLine: {'line': b'creating /home/robo/david_ws/src/utbots_tasks/build/utbots_tasks/build/lib/utbots_tasks\n'}
+[3.917296] (utbots_tasks) StdoutLine: {'line': b'copying utbots_tasks/__init__.py -> /home/robo/david_ws/src/utbots_tasks/build/utbots_tasks/build/lib/utbots_tasks\n'}
+[3.917457] (utbots_tasks) StdoutLine: {'line': b'copying utbots_tasks/beverage_search.py -> /home/robo/david_ws/src/utbots_tasks/build/utbots_tasks/build/lib/utbots_tasks\n'}
+[3.917613] (utbots_tasks) StdoutLine: {'line': b'running install\n'}
+[3.917833] (utbots_tasks) StdoutLine: {'line': b'running install_lib\n'}
+[3.919992] (utbots_tasks) StdoutLine: {'line': b'creating /home/robo/david_ws/src/utbots_tasks/install/utbots_tasks/lib/python3.10/site-packages/utbots_tasks\n'}
+[3.920477] (utbots_tasks) StdoutLine: {'line': b'copying /home/robo/david_ws/src/utbots_tasks/build/utbots_tasks/build/lib/utbots_tasks/__init__.py -> /home/robo/david_ws/src/utbots_tasks/install/utbots_tasks/lib/python3.10/site-packages/utbots_tasks\n'}
+[3.920757] (utbots_tasks) StdoutLine: {'line': b'copying /home/robo/david_ws/src/utbots_tasks/build/utbots_tasks/build/lib/utbots_tasks/beverage_search.py -> /home/robo/david_ws/src/utbots_tasks/install/utbots_tasks/lib/python3.10/site-packages/utbots_tasks\n'}
+[3.921834] (utbots_tasks) StdoutLine: {'line': b'byte-compiling /home/robo/david_ws/src/utbots_tasks/install/utbots_tasks/lib/python3.10/site-packages/utbots_tasks/__init__.py to __init__.cpython-310.pyc\n'}
+[3.922440] (utbots_tasks) StdoutLine: {'line': b'byte-compiling /home/robo/david_ws/src/utbots_tasks/install/utbots_tasks/lib/python3.10/site-packages/utbots_tasks/beverage_search.py to beverage_search.cpython-310.pyc\n'}
+[3.924321] (utbots_tasks) StdoutLine: {'line': b'running install_data\n'}
+[3.924820] (utbots_tasks) StdoutLine: {'line': b'creating /home/robo/david_ws/src/utbots_tasks/install/utbots_tasks/share/ament_index\n'}
+[3.925155] (utbots_tasks) StdoutLine: {'line': b'creating /home/robo/david_ws/src/utbots_tasks/install/utbots_tasks/share/ament_index/resource_index\n'}
+[3.925352] (utbots_tasks) StdoutLine: {'line': b'creating /home/robo/david_ws/src/utbots_tasks/install/utbots_tasks/share/ament_index/resource_index/packages\n'}
+[3.925533] (utbots_tasks) StdoutLine: {'line': b'copying resource/utbots_tasks -> /home/robo/david_ws/src/utbots_tasks/install/utbots_tasks/share/ament_index/resource_index/packages\n'}
+[3.925804] (utbots_tasks) StdoutLine: {'line': b'copying package.xml -> /home/robo/david_ws/src/utbots_tasks/install/utbots_tasks/share/utbots_tasks\n'}
+[3.926158] (utbots_tasks) StdoutLine: {'line': b'running install_egg_info\n'}
+[3.929237] (-) TimerEvent: {}
+[3.930418] (utbots_tasks) StdoutLine: {'line': b'Copying ../build/utbots_tasks/utbots_tasks.egg-info to /home/robo/david_ws/src/utbots_tasks/install/utbots_tasks/lib/python3.10/site-packages/utbots_tasks-0.0.0-py3.10.egg-info\n'}
+[3.932571] (utbots_tasks) StdoutLine: {'line': b'running install_scripts\n'}
+[4.006141] (utbots_tasks) StdoutLine: {'line': b'Installing beverage_search script to /home/robo/david_ws/src/utbots_tasks/install/utbots_tasks/lib/utbots_tasks\n'}
+[4.006980] (utbots_tasks) StdoutLine: {'line': b"writing list of installed files to '/home/robo/david_ws/src/utbots_tasks/build/utbots_tasks/install.log'\n"}
+[4.029478] (-) TimerEvent: {}
+[4.090434] (utbots_tasks) CommandEnded: {'returncode': 0}
+[4.129952] (-) TimerEvent: {}
+[4.230788] (-) TimerEvent: {}
+[4.310100] (utbots_tasks) JobEnded: {'identifier': 'utbots_tasks', 'rc': 0}
+[4.311758] (-) EventReactorShutdown: {}

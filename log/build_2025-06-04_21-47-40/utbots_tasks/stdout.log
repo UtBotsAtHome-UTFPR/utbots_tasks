@@ -1,0 +1,35 @@
+running egg_info
+creating ../build/utbots_tasks/utbots_tasks.egg-info
+writing ../build/utbots_tasks/utbots_tasks.egg-info/PKG-INFO
+writing dependency_links to ../build/utbots_tasks/utbots_tasks.egg-info/dependency_links.txt
+writing entry points to ../build/utbots_tasks/utbots_tasks.egg-info/entry_points.txt
+writing requirements to ../build/utbots_tasks/utbots_tasks.egg-info/requires.txt
+writing top-level names to ../build/utbots_tasks/utbots_tasks.egg-info/top_level.txt
+writing manifest file '../build/utbots_tasks/utbots_tasks.egg-info/SOURCES.txt'
+reading manifest file '../build/utbots_tasks/utbots_tasks.egg-info/SOURCES.txt'
+writing manifest file '../build/utbots_tasks/utbots_tasks.egg-info/SOURCES.txt'
+running build
+running build_py
+creating /home/robo/david_ws/src/utbots_tasks/build/utbots_tasks/build
+creating /home/robo/david_ws/src/utbots_tasks/build/utbots_tasks/build/lib
+creating /home/robo/david_ws/src/utbots_tasks/build/utbots_tasks/build/lib/utbots_tasks
+copying utbots_tasks/__init__.py -> /home/robo/david_ws/src/utbots_tasks/build/utbots_tasks/build/lib/utbots_tasks
+copying utbots_tasks/beverage_search.py -> /home/robo/david_ws/src/utbots_tasks/build/utbots_tasks/build/lib/utbots_tasks
+running install
+running install_lib
+creating /home/robo/david_ws/src/utbots_tasks/install/utbots_tasks/lib/python3.10/site-packages/utbots_tasks
+copying /home/robo/david_ws/src/utbots_tasks/build/utbots_tasks/build/lib/utbots_tasks/__init__.py -> /home/robo/david_ws/src/utbots_tasks/install/utbots_tasks/lib/python3.10/site-packages/utbots_tasks
+copying /home/robo/david_ws/src/utbots_tasks/build/utbots_tasks/build/lib/utbots_tasks/beverage_search.py -> /home/robo/david_ws/src/utbots_tasks/install/utbots_tasks/lib/python3.10/site-packages/utbots_tasks
+byte-compiling /home/robo/david_ws/src/utbots_tasks/install/utbots_tasks/lib/python3.10/site-packages/utbots_tasks/__init__.py to __init__.cpython-310.pyc
+byte-compiling /home/robo/david_ws/src/utbots_tasks/install/utbots_tasks/lib/python3.10/site-packages/utbots_tasks/beverage_search.py to beverage_search.cpython-310.pyc
+running install_data
+creating /home/robo/david_ws/src/utbots_tasks/install/utbots_tasks/share/ament_index
+creating /home/robo/david_ws/src/utbots_tasks/install/utbots_tasks/share/ament_index/resource_index
+creating /home/robo/david_ws/src/utbots_tasks/install/utbots_tasks/share/ament_index/resource_index/packages
+copying resource/utbots_tasks -> /home/robo/david_ws/src/utbots_tasks/install/utbots_tasks/share/ament_index/resource_index/packages
+copying package.xml -> /home/robo/david_ws/src/utbots_tasks/install/utbots_tasks/share/utbots_tasks
+running install_egg_info
+Copying ../build/utbots_tasks/utbots_tasks.egg-info to /home/robo/david_ws/src/utbots_tasks/install/utbots_tasks/lib/python3.10/site-packages/utbots_tasks-0.0.0-py3.10.egg-info
+running install_scripts
+Installing beverage_search script to /home/robo/david_ws/src/utbots_tasks/install/utbots_tasks/lib/utbots_tasks
+writing list of installed files to '/home/robo/david_ws/src/utbots_tasks/build/utbots_tasks/install.log'

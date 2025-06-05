@@ -1,0 +1,3 @@
+[console_scripts]
+beverage_search = utbots_tasks.beverage_search:main
+
