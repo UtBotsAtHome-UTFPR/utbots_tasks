@@ -3,7 +3,7 @@ from yasmin import ActionState, SUCCEED, ABORT
 from nav2_msgs.action import NavigateToPose
 
 
-class GoToState(ActionState):
+class SendTTSState(ActionState):
     def __init__(self) -> None:
          super().__init__(
             TextToSpeech,  # action type
