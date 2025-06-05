@@ -10,6 +10,7 @@ from yasmin_ros import set_ros_loggers
 from yasmin_ros.basic_outcomes import SUCCEED, ABORT, CANCEL
 from yasmin_viewer import YasminViewerPub
 
+from utbots_tasks.states.basic_nav import GoToWaypointState, Ro
 
 def initializeDetections(blackboard: Blackboard) -> str:
     blackboard["n_detections"] = 0
@@ -56,6 +57,8 @@ def main():
     sm = StateMachine(outcomes=["outcome4", "outcome3"])
 
     # Add states to the FSM
+
+
     sm.add_state(
         "INITIALIZE_DETECTIONS",
         CbState([SUCCEED], initializeDetections),

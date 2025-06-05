@@ -1,72 +1,80 @@
 from yasmin import State, Blackboard
+from yasmin import ActionState, SUCCEED, ABORT
+from nav2_msgs.action import NavigateToPose
 from rclpy.node import Node
 from geometry_msgs.msg import PoseStamped
 from sensor_msgs.msg import LaserScan
-from std_msgs.msg import String
-from rclpy.qos import QoSProfile
-from rclpy.task import Future
 import rclpy
 import time
 import yaml
+import math
+from tf_transformations import quaternion_from_euler
+from std_msgs.msg import Int32
 
-class GoToState(State):
-    def __init__(self, node: Node):
-        super().__init__(outcomes=['succeeded', 'failed'])
-        self.node = node
-        self.result_msg = None
-        self.result_future = Future()
-
-        # Publishers and subscribers
-        self.goal_pub = self.node.create_publisher(PoseStamped, '/navigate_to_pose/goal', QoSProfile(depth=10))
-        self.result_sub = self.node.create_subscription(
-            String,
-            '/navigate_to_pose/result',
-            self.result_callback,
-            QoSProfile(depth=10)
+class GoToState(ActionState):
+    def __init__(self) -> None:
+         super().__init__(
+            NavigateToPose,  # action type
+            "/navigate_to_pose",  # action name
+            self.create_goal_handler,  # callback to create the goal
+            None,  # outcomes
+            None,  # callback to process the response
         )
 
-    def result_callback(self, msg: String):
-        if not self.result_future.done():
-            self.result_future.set_result(msg)
+    def create_goal_handler(self, blackboard: Blackboard) -> NavigateToPose.Goal:
+        goal = NavigateToPose.Goal()
+        goal.pose.pose = blackboard["pose"]
+        goal.pose.header.frame_id = "map"  # Set the reference frame to 'map'
+        return goal
 
-    def execute(self, blackboard: Blackboard) -> str:
-        self.node.get_logger().info("Executing state: go_to")
+class RotateInPlaceState(ActionState):
+    def __init__(self) -> None:
+        super().__init__(
+            NavigateToPose,  # action type
+            "/navigate_to_pose",  # action name
+            self.create_goal_handler,  # callback to create the goal
+            None,  # outcomes
+            None,  # callback to process the response
+        )
+    
+    def create_goal_handler(self, blackboard: Blackboard) -> NavigateToPose.Goal:
+        degrees = blackboard["rotate"]
+        radians = math.radians(degrees)
 
-        # Reads the goal from the (universal) blackboard
-        goal_msg = PoseStamped()
-        goal = blackboard.get("goal")
-        goal_msg.pose.position.x = goal.pose.position.x
-        goal_msg.pose.position.y = goal.pose.position.y
-        goal_msg.pose.orientation.z = goal.pose.orientation.z
-        goal_msg.pose.orientation.w = goal.pose.orientation.w
+        # Create quaternion for yaw rotation
+        q = quaternion_from_euler(0, 0, radians)
 
-        # Sends the goal to the navigation topic
-        self.goal_pub.publish(goal_msg)
-        self.node.get_logger().info("Goal published, waiting for result...")
+        pose = PoseStamped()
+        pose.header.frame_id = "map"
+        pose.pose.position.x = 0.0  # no translation
+        pose.pose.position.y = 0.0
+        pose.pose.position.z = 0.0
+        pose.pose.orientation.x = q[0]
+        pose.pose.orientation.y = q[1]
+        pose.pose.orientation.z = q[2]
+        pose.pose.orientation.w = q[3]
 
-        # Wait for the result message with a timeout
-        rclpy.spin_until_future_complete(self.node, self.result_future, timeout_sec=600)
+        goal = NavigateToPose.Goal()
+        goal.pose = pose
+        return goal
+    
+class GoToWaypointState(ActionState):
+    def __init__(self) -> None:
+        super().__init__(
+            NavigateToPose,  # action type
+            "/navigate_to_pose",  # action name
+            self.create_goal_handler,  # callback to create the goal
+            None,  # outcomes
+            None,  # callback to process the response
+        )
 
-        if self.result_future.done():
-            result_msg = self.result_future.result()
-            if result_msg.data.lower() == "succeeded":
-                return 'succeeded'
-            else:
-                return 'failed'
-        else:
-            self.node.get_logger().error("Timeout waiting for result")
-            return 'failed'
+    def create_goal_handler(self, blackboard: Blackboard) -> NavigateToPose.Goal:
+        nametag = blackboard["waypoint_nametag"]
+        yaml_path = blackboard["yaml_path"]
+        if not nametag or not yaml_path:
+            return ABORT
 
-class GoToWaypointState(GoToState):
-    def __init__(self, node: Node, yaml_file_path: str):
-        super().__init__(node)
-        self.yaml_path = yaml_file_path
-
-    def retrieve_waypoint(nametag: str, yaml_path: str) -> PoseStamped | None:
-        if not nametag:
-            return None
-
-        with open(yaml_path, 'r') as file:
+        with open(blackboard["yaml_path"], 'r') as file:
             data = yaml.safe_load(file)
 
         for pose_data in data['poses']:
@@ -86,45 +94,36 @@ class GoToWaypointState(GoToState):
                 pose_stamped.pose.orientation.w = pose_data['pose']['orientation']['w']
 
                 return pose_stamped
-        return None
-    
-    def execute(self, blackboard: Blackboard) -> str:
-        waypoint_name = blackboard.get("waypoint")
-        self.node.get_logger().info(f"Retrieving waypoint: {waypoint_name}")
+        return ABORT
 
-        waypoint_nametag = blackboard.get("waypoint_nametag")
-        waypoint = self.retrieve_waypoint(waypoint_nametag, self.yaml_path)
-        if waypoint is None:
-            self.node.get_logger().error("Waypoint not found or invalid.")
-            return 'failed'
-
-        # Coloca o waypoint carregado no blackboard para o GoToState usar
-        blackboard.set("goal", waypoint)
-
-        # Agora reutiliza o comportamento da superclasse GoToState
-        return super().execute(blackboard)
-        
 class WaitDoorOpenState(State):
     def __init__(self, node: Node, timeout_sec: int = 200):
         super().__init__(outcomes=['succeeded', 'timed_out'])
         self.node = node
         self.timeout_sec = timeout_sec
-        self.pub_vm = node.create_publisher(String, '/voice_msgs', QoSProfile(depth=10))  # Pub VM equivalent
+        self.scan = LaserScan()
+    
+    def on_entry(self):
+        self._start_time = time.time()
+        self._subscriber = self._node.create_subscription(
+            Int32,
+            self._topic_name,
+            self._callback,
+            10
+        )
 
-    def publish_message(self, text: str):
-        msg = String()
-        msg.data = text
-        self.pub_vm.publish(msg)
+    def on_exit(self):
+        self._node.destroy_subscription(self._subscriber)
+
+    def _callback(self, msg: LaserScan):
+        self.scan = msg
 
     def execute(self, blackboard: Blackboard) -> str:
-        self.node.get_logger().info("Waiting for door to open")
-        self.publish_message("Waiting for door")
 
         start_time = time.time()
 
         while (time.time() - start_time) < self.timeout_sec:
             try:
-                scan = self._wait_for_scan(timeout=5.0)
                 if scan is None:
                     continue
 
@@ -135,27 +134,12 @@ class WaitDoorOpenState(State):
                 check_vec = sub_vec_a + sub_vec_b
 
                 if len([i for i in check_vec if i > 1.5]) > 45:
-                    self.node.get_logger().info("Detected open door")
-                    self.publish_message("Detected open door")
+                    blackboard["log"] = info("Detected open door")
                     time.sleep(5)
-                    return "succeeded"
+                    return SUCCEED
 
             except Exception as e:
-                self.node.get_logger().error(f"Error while waiting for door: {e}")
+                blackboard["log"] = f"Error while waiting for door: {e}"
 
-        self.node.get_logger().info("Timed out waiting for door to open")
-        self.publish_message("Timed out waiting for door to open")
-        return "timed_out"
-
-    def _wait_for_scan(self, timeout=5.0):
-        future = Future()
-
-        def callback(msg):
-            if not future.done():
-                future.set_result(msg)
-
-        sub = self.node.create_subscription(LaserScan, '/scan', callback, QoSProfile(depth=10))
-        rclpy.spin_until_future_complete(self.node, future, timeout_sec=timeout)
-        self.node.destroy_subscription(sub)
-        return future.result() if future.done() else None
-
+        blackboard["log"] = "Timed out waiting for door to open"
+        return ABORT
