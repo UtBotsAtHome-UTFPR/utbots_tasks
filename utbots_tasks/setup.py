@@ -20,7 +20,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'beverage_search = utbots_tasks.beverage_search:main' 
+            'beverage_search = utbots_tasks.beverage_search:main',
+            'recognition = states.basic_face:main',
         ],
     },
 )
