@@ -1,7 +1,7 @@
 import rclpy
-from utbots_actions.action import YOLODetection
+from utbots_actions.action import YOLOBatchDetection
 from utbots_msgs.msg import BoundingBoxes
-from std_msgs.msg import String
+from std_msgs.msg import String, Int32, Float32
 
 import yasmin
 from yasmin import CbState, Blackboard, StateMachine
@@ -10,38 +10,31 @@ from yasmin_ros import set_ros_loggers
 from yasmin_ros.basic_outcomes import SUCCEED, ABORT, CANCEL
 from yasmin_viewer import YasminViewerPub
 
-from utbots_tasks.states.basic_nav import GoToWaypointState, Ro
-
-def initializeDetections(blackboard: Blackboard) -> str:
-    blackboard["n_detections"] = 0
-    return SUCCEED
-
-def checkDetections(blackboard: Blackboard) -> str:
-    if blackboard["n_detections"] < blackboard["threshold"]:
-        return "redetect"
-    else:
-        return "found_candidate"
-
 class VoteDetectionsState(ActionState):
     def __init__(self) -> None:
         super().__init__(
-            YOLODetection,  # action type
-            "YOLO_detection",  # action name
+            YOLOBatchDetection,  # action type
+            "YOLO_batch_detection",  # action name
             self.create_goal_handler,  # callback to create the goal
             None,  # outcomes. Includes (SUCCEED, ABORT, CANCEL)
             self.response_handler,  # callback to process the response
             None,  # callback to process the feedback
         )
 
-    def create_goal_handler(self, blackboard: Blackboard) -> YOLODetection.Goal:
-        goal = YOLODetection.Goal()
+    def create_goal_handler(self, blackboard: Blackboard) -> YOLOBatchDetection.Goal:
+        goal = YOLOBatchDetection.Goal()
         goal.target_category = String()
+        goal.target_category.data = blackboard["beverage"]
+        goal.batch_size = Int32()
+        goal.batch_size.data = blackboard["batch_size"]
+        goal.iou_threshold = Float32()
+        goal.iou_threshold.data = blackboard["iou_threshold"]
+        goal.support_threshold = Float32()
+        goal.support_threshold.data = blackboard["support_threshold"]
         return goal
 
-    def response_handler(self, blackboard: Blackboard, response: YOLODetection.Result) -> str:
-        result = YOLODetection.Result
-        if len(result.detected_objs.bounding_boxes) > 0:
-            blackboard["n_detections"] += 1
+    def response_handler(self, blackboard: Blackboard, response: YOLOBatchDetection.Result) -> str:
+        print(response.detected_objs)
         return SUCCEED
 
 def main():
@@ -58,30 +51,13 @@ def main():
 
     # Add states to the FSM
 
-
-    sm.add_state(
-        "INITIALIZE_DETECTIONS",
-        CbState([SUCCEED], initializeDetections),
-        transitions={
-            SUCCEED: "VOTE_DETECTIONS",
-        },
-    )
-
     sm.add_state(
         "VOTE_DETECTIONS",
         VoteDetectionsState(),
         transitions={
-            SUCCEED: "CHECK_DETECTIONS",
+            SUCCEED: "outcome3",
             CANCEL: "outcome4",
             ABORT: "outcome4",
-        },
-    )
-    sm.add_state(
-        "CHECK_DETECTIONS",
-        CbState(["redetect", "found_candidate"], checkDetections),
-        transitions={
-            "redetect": "VOTE_DETECTIONS",
-            "found_candidate": "outcome3"
         },
     )
 
@@ -90,10 +66,10 @@ def main():
 
     # Create an initial blackboard with the input value
     blackboard = Blackboard()
-    blackboard["threshold"] = 5
-    string = String()
-    string.data = "Person"
-    blackboard["beverage"] = string
+    blackboard["iou_threshold"] = 0.5
+    blackboard["support_threshold"] = 0.4
+    blackboard["batch_size"] = 50
+    blackboard["beverage"] = "person"
 
     # Execute the FSM
     try:
