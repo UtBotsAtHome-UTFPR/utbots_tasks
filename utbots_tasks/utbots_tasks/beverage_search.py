@@ -1,14 +1,92 @@
 import rclpy
+from rclpy.qos import qos_profile_sensor_data
 from utbots_actions.action import YOLOBatchDetection
-from utbots_msgs.msg import BoundingBoxes
 from std_msgs.msg import String, Int32, Float32
+from nav2_msgs.action import NavigateToPose
+from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped
+import math
+#Monkey path (TODO:change)
+import numpy as np
+if not hasattr(np, 'float'):
+    np.float = float
+from tf_transformations import quaternion_from_euler
+from tf_transformations import quaternion_multiply
+from std_msgs.msg import Int32
 
 import yasmin
 from yasmin import CbState, Blackboard, StateMachine
-from yasmin_ros import ActionState
+from yasmin_ros import ActionState, MonitorState
 from yasmin_ros import set_ros_loggers
 from yasmin_ros.basic_outcomes import SUCCEED, ABORT, CANCEL
 from yasmin_viewer import YasminViewerPub
+
+from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy
+
+custom_qos = QoSProfile(
+    reliability=QoSReliabilityPolicy.RELIABLE,
+    history=QoSHistoryPolicy.KEEP_LAST,
+    depth=10
+)
+
+# from states_lib.states.basic_nav import RotateInPlaceState
+
+class GetCurrentPoseState(MonitorState):
+    def __init__(self) -> None:
+        super().__init__(PoseWithCovarianceStamped, 
+                         "/amcl_pose", 
+                         [SUCCEED, ABORT], 
+                         self.monitor_handler, 
+                         qos=custom_qos, 
+                         msg_queue=10, 
+                         timeout=30)
+        
+    def monitor_handler(self, blackboard: Blackboard, msg: PoseWithCovarianceStamped) -> str:
+        blackboard["current_pose"] = msg
+
+class RotateInPlaceState(ActionState):
+    def __init__(self, node) -> None:
+        super().__init__(
+            NavigateToPose,  # action type
+            "/navigate_to_pose",  # action name
+            self.create_goal_handler,  # callback to create the goal
+            None,  # outcomes
+            None,  # callback to process the response
+        )
+        self.node = node
+        self.current_pose = PoseWithCovarianceStamped()
+        
+    def create_goal_handler(self, blackboard: Blackboard) -> NavigateToPose.Goal:
+        degrees = blackboard["rotate"]
+        radians = math.radians(degrees)
+
+        try:
+            pose = PoseStamped()
+            self.current_pose = blackboard["current_pose"]
+            pose.header.frame_id = "map"
+            pose.header.stamp = self.node.get_clock().now().to_msg()
+
+            pose.pose.position.x = self.current_pose.pose.pose.position.x
+            pose.pose.position.y = self.current_pose.pose.pose.position.y
+            pose.pose.position.z = 0.0
+
+            # Apply rotation
+            current_q = self.current_pose.pose.pose.orientation
+            q_current = [current_q.x, current_q.y, current_q.z, current_q.w]
+            q_rotate = quaternion_from_euler(0, 0, radians)
+            q_new = quaternion_multiply(q_rotate, q_current)
+
+            pose.pose.orientation.x = q_new[0]
+            pose.pose.orientation.y = q_new[1]
+            pose.pose.orientation.z = q_new[2]
+            pose.pose.orientation.w = q_new[3]
+
+            goal = NavigateToPose.Goal()
+            goal.pose = pose
+            return goal
+
+        except Exception as e:
+            self.node.get_logger().error(f"Could not compute goal: {e}")
+            return ABORT
 
 class VoteDetectionsState(ActionState):
     def __init__(self) -> None:
@@ -39,18 +117,32 @@ class VoteDetectionsState(ActionState):
 
 def main():
     yasmin.YASMIN_LOG_INFO("yasmin_action_client_demo")
-
-    # Initialize ROS 2
     rclpy.init()
+    node = rclpy.create_node("receptionist_sm")
 
-    # Set up ROS 2 logs
+     # Set up ROS 2 logs
     set_ros_loggers()
 
     # Create a finite state machine (FSM)
     sm = StateMachine(outcomes=["outcome4", "outcome3"])
 
-    # Add states to the FSM
-
+    sm.add_state(
+        "GET_CURRENT_POSE",
+        GetCurrentPoseState(),
+        transitions={
+            SUCCEED: "VOTE_DETECTIONS",
+            ABORT: "outcome3"
+        },
+    )
+    sm.add_state(
+        "ROTATE",
+        RotateInPlaceState(node),
+        transitions={
+            SUCCEED: "outcome3",
+            CANCEL: "outcome4",
+            ABORT: "outcome4",
+        },
+    )
     sm.add_state(
         "VOTE_DETECTIONS",
         VoteDetectionsState(),
@@ -70,6 +162,7 @@ def main():
     blackboard["support_threshold"] = 0.4
     blackboard["batch_size"] = 50
     blackboard["beverage"] = "person"
+    blackboard["rotate"] = 180
 
     # Execute the FSM
     try:
