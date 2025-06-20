@@ -21,7 +21,7 @@ class RecognitionState(ActionState):
             None,  # callback to process the feedback
         )
 
-    def create_goal_handler(self, blackboard: Blackboard) -> Fibonacci.Goal:
+    def create_goal_handler(self, blackboard: Blackboard) -> Recognition.Goal:
         goal = Recognition.Goal()
 
         if "img" in blackboard:
@@ -30,12 +30,63 @@ class RecognitionState(ActionState):
         return goal
 
     def response_handler(self, blackboard: Blackboard, response: Recognition.Result) -> str:
-        #response.image
-        #response.people
+        if type(response.people) is not list:
+            return CANCEL
+
         blackboard["people"] = (response.people)
         blackboard["recognized_img"] = (response.image)
-        
         return SUCCEED
+        '''self._node.get_logger().info("Here")
+        if goal_status == 4:  # SUCCEEDED
+            if "people" in blackboard:
+                blackboard["people"] = (response.people)
+                blackboard["recognized_img"] = (response.image)
+            return SUCCEED
+        elif goal_status == 5:  # CANCELED
+            return CANCEL
+        elif goal_status == 6:  # ABORTED
+            return ABORT
+        else:
+            return ABORT  # fallback for unknown/error'''
+        
+
+class NewFaceState(ActionState):
+
+    def __init__(self) -> None:
+        super().__init__(
+            Recognition,  # action type
+            "/new_face",  # action name
+            self.create_goal_handler,  # callback to create the goal
+            None,  # outcomes. Includes (SUCCEED, ABORT, CANCEL)
+            self.response_handler,  # callback to process the response
+            None,  # callback to process the feedback
+        )
+
+    def create_goal_handler(self, blackboard: Blackboard) -> NewFace.Goal:
+        goal = NewFace.Goal()
+
+        if "n_pics" in blackboard:
+            goal.n_pictures.data = blackboard["n_pics"]
+        else:
+            goal.n_pictures.data = 10
+        
+        if "Operator" in blackboard:
+            goal.name.data = blackboard["Operator"]
+        else:
+            goal.name.data = "Operator"
+
+        return goal
+
+    def response_handler(self, blackboard: Blackboard, goal_status: int, response: NewFace.Result) -> str:
+
+        if goal_status == 4:  # SUCCEEDED
+            return SUCCEED
+        elif goal_status == 5:  # CANCELED
+            return CANCEL
+        elif goal_status == 6:  # ABORTED
+            return ABORT
+        else:
+            return ABORT  # fallback for unknown/error
 
 def main():
     """
@@ -62,7 +113,7 @@ def main():
     set_ros_loggers()
 
     # Create a finite state machine (FSM)
-    sm = StateMachine(outcomes=[SUCCEED])
+    sm = StateMachine(outcomes=[SUCCEED, CANCEL])
 
     # Add states to the FSM
     sm.add_state(
@@ -70,7 +121,7 @@ def main():
         RecognitionState(),
         transitions={
             SUCCEED: SUCCEED, # All mapping to SUCCEED for now
-            CANCEL: SUCCEED,
+            CANCEL: CANCEL,
             ABORT: SUCCEED,
         },
     )
