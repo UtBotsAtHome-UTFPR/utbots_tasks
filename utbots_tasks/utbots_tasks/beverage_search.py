@@ -13,6 +13,7 @@ from tf_transformations import quaternion_from_euler
 from tf_transformations import quaternion_multiply
 from std_msgs.msg import Int32
 
+import yaml
 import yasmin
 from yasmin import CbState, Blackboard, StateMachine
 from yasmin_ros import ActionState, MonitorState
@@ -20,11 +21,11 @@ from yasmin_ros import set_ros_loggers
 from yasmin_ros.basic_outcomes import SUCCEED, ABORT, CANCEL
 from yasmin_viewer import YasminViewerPub
 
-from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy
+from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy, QoSDurabilityPolicy
 
 custom_qos = QoSProfile(
     reliability=QoSReliabilityPolicy.RELIABLE,
-    history=QoSHistoryPolicy.KEEP_LAST,
+    durability=QoSDurabilityPolicy.TRANSIENT_LOCAL,
     depth=10
 )
 
@@ -42,6 +43,49 @@ class GetCurrentPoseState(MonitorState):
         
     def monitor_handler(self, blackboard: Blackboard, msg: PoseWithCovarianceStamped) -> str:
         blackboard["current_pose"] = msg
+        return SUCCEED
+
+class GoToWaypointState(ActionState):
+    def __init__(self) -> None:
+        super().__init__(
+            NavigateToPose,  # action type
+            "/navigate_to_pose",  # action name
+            self.create_goal_handler,  # callback to create the goal
+            None,  # outcomes
+            None,  # callback to process the response
+        )
+
+    def create_goal_handler(self, blackboard: Blackboard) -> NavigateToPose.Goal:
+        nametag = blackboard["waypoint_nametag"]
+        yaml_path = blackboard["yaml_path"]
+        if not nametag or not yaml_path:
+            return ABORT
+
+        with open(blackboard["yaml_path"], 'r') as file:
+            data = yaml.safe_load(file)
+
+        for waypoint in data['waypoints']:
+            if waypoint == nametag:
+                pose_data = data['waypoints'][waypoint]
+                pose_stamped = PoseStamped()
+                # pose_stamped.header.stamp.sec = pose_data['header']['stamp']['secs']
+                # pose_stamped.header.stamp.nanosec = pose_data['header']['stamp']['nsecs']
+                pose_stamped.header.frame_id = 'map'
+
+                pose_stamped.pose.position.x = pose_data['position']['x']
+                pose_stamped.pose.position.y = pose_data['position']['y']
+                pose_stamped.pose.position.z = pose_data['position']['z']
+
+                pose_stamped.pose.orientation.x = pose_data['orientation']['x']
+                pose_stamped.pose.orientation.y = pose_data['orientation']['y']
+                pose_stamped.pose.orientation.z = pose_data['orientation']['z']
+                pose_stamped.pose.orientation.w = pose_data['orientation']['w']
+                print(pose_stamped)
+
+                goal = NavigateToPose.Goal()
+                goal.pose = pose_stamped
+                return goal
+        return ABORT
 
 class RotateInPlaceState(ActionState):
     def __init__(self, node) -> None:
@@ -127,10 +171,18 @@ def main():
     sm = StateMachine(outcomes=["outcome4", "outcome3"])
 
     sm.add_state(
+        "GO_TO_KITCHEN",
+        GoToWaypointState(),
+        transitions={
+            SUCCEED: "GET_CURRENT_POSE",
+            ABORT: "outcome3"
+        },
+    )
+    sm.add_state(
         "GET_CURRENT_POSE",
         GetCurrentPoseState(),
         transitions={
-            SUCCEED: "VOTE_DETECTIONS",
+            SUCCEED: "ROTATE",
             ABORT: "outcome3"
         },
     )
@@ -138,7 +190,7 @@ def main():
         "ROTATE",
         RotateInPlaceState(node),
         transitions={
-            SUCCEED: "outcome3",
+            SUCCEED: "VOTE_DETECTIONS",
             CANCEL: "outcome4",
             ABORT: "outcome4",
         },
@@ -161,8 +213,10 @@ def main():
     blackboard["iou_threshold"] = 0.5
     blackboard["support_threshold"] = 0.4
     blackboard["batch_size"] = 50
-    blackboard["beverage"] = "person"
+    blackboard["beverage"] = "bottle"
     blackboard["rotate"] = 180
+    blackboard['yaml_path'] = '/home/robo/david_ws/src/utbots_navigation/utbots_nav/map/pitaco_waypoints.yaml'
+    blackboard['waypoint_nametag'] = 'kitchen'
 
     # Execute the FSM
     try:
