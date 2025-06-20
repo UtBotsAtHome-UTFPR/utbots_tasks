@@ -54,7 +54,7 @@ class NewFaceState(ActionState):
 
     def __init__(self) -> None:
         super().__init__(
-            Recognition,  # action type
+            NewFace,  # action type
             "/new_face",  # action name
             self.create_goal_handler,  # callback to create the goal
             None,  # outcomes. Includes (SUCCEED, ABORT, CANCEL)
@@ -68,7 +68,7 @@ class NewFaceState(ActionState):
         if "n_pics" in blackboard:
             goal.n_pictures.data = blackboard["n_pics"]
         else:
-            goal.n_pictures.data = 10
+            goal.n_pictures.data = 5
         
         if "Operator" in blackboard:
             goal.name.data = blackboard["Operator"]
@@ -77,16 +77,9 @@ class NewFaceState(ActionState):
 
         return goal
 
-    def response_handler(self, blackboard: Blackboard, goal_status: int, response: NewFace.Result) -> str:
+    def response_handler(self, blackboard: Blackboard, response: NewFace.Result) -> str:
 
-        if goal_status == 4:  # SUCCEEDED
-            return SUCCEED
-        elif goal_status == 5:  # CANCELED
-            return CANCEL
-        elif goal_status == 6:  # ABORTED
-            return ABORT
-        else:
-            return ABORT  # fallback for unknown/error
+        return SUCCEED
 
 def main():
     """
@@ -114,6 +107,16 @@ def main():
 
     # Create a finite state machine (FSM)
     sm = StateMachine(outcomes=[SUCCEED, CANCEL])
+
+    sm.add_state(
+        "CALLING_NEW_FACE",
+        NewFaceState(),
+        transitions={
+            SUCCEED: "CALLING_RECOGNITION", # All mapping to SUCCEED for now
+            CANCEL: CANCEL,
+            ABORT: SUCCEED,
+        },
+    )
 
     # Add states to the FSM
     sm.add_state(
