@@ -4,6 +4,7 @@ from utbots_actions.action import YOLOBatchDetection
 from std_msgs.msg import String, Int32, Float32
 from nav2_msgs.action import NavigateToPose
 from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped
+from nav_msgs.msg import Odometry
 import math
 #Monkey path (TODO:change)
 import numpy as np
@@ -31,12 +32,30 @@ custom_qos = QoSProfile(
     depth=10
 )
 
+# Fora da máquina, num node rclpy normal:
+def cb(msg):
+    print("Msg recebida:", msg)
+
 # from states_lib.states.basic_nav import RotateInPlaceState
+
+# class GetCurrentPoseState(MonitorState):
+#     def __init__(self) -> None:
+#         super().__init__(PoseWithCovarianceStamped, 
+#                          "/amcl_pose", 
+#                          [SUCCEED, ABORT], 
+#                          self.monitor_handler, 
+#                          qos=custom_qos, 
+#                          msg_queue=10, 
+#                          timeout=30)
+        
+#     def monitor_handler(self, blackboard: Blackboard, msg: PoseWithCovarianceStamped) -> str:
+#         blackboard["current_pose"] = msg
+#         return SUCCEED
 
 class GetCurrentPoseState(MonitorState):
     def __init__(self) -> None:
-        super().__init__(PoseWithCovarianceStamped, 
-                         "/amcl_pose", 
+        super().__init__(Odometry, 
+                         "/hoverboard_base_controller/odom", 
                          [SUCCEED, ABORT], 
                          self.monitor_handler, 
                          qos=custom_qos, 
@@ -108,7 +127,7 @@ class RotateInPlaceState(ActionState):
         try:
             pose = PoseStamped()
             self.current_pose = blackboard["current_pose"]
-            pose.header.frame_id = "map"
+            pose.header.frame_id = "odom"
             pose.header.stamp = self.node.get_clock().now().to_msg()
 
             pose.pose.position.x = self.current_pose.pose.pose.position.x
@@ -158,8 +177,11 @@ class VoteDetectionsState(ActionState):
         return goal
 
     def response_handler(self, blackboard: Blackboard, response: YOLOBatchDetection.Result) -> str:
-        print(response.detected_objs)
-        return SUCCEED
+        persons = response.detected_objs.bounding_boxes
+        if len(persons) > 0:
+            return SUCCEED
+        else:
+            return CANCEL
 
 def main():
     yasmin.YASMIN_LOG_INFO("yasmin_action_client_demo")
@@ -172,25 +194,15 @@ def main():
     # Create a finite state machine (FSM)
     sm = StateMachine(outcomes=["outcome4", "outcome3"])
 
-    '''sm.add_state(
+    sm.add_state(
         "NEW_FACE",
         NewFaceState(),
-        transitions={
-            SUCCEED: "RECOGNITION", # All mapping to SUCCEED for now
-            CANCEL: "outcome3",
-            ABORT: "outcome3",
-        },
-    )
-
-    sm.add_state(
-        "RECOGNITION",
-        RecognitionState(),
         transitions={
             SUCCEED: "GO_TO_KITCHEN", # All mapping to SUCCEED for now
             CANCEL: "outcome3",
             ABORT: "outcome3",
         },
-    )'''
+    )
 
     sm.add_state(
         "GO_TO_KITCHEN",
@@ -200,6 +212,7 @@ def main():
             ABORT: "outcome3"
         },
     )
+
     sm.add_state(
         "GET_CURRENT_POSE",
         GetCurrentPoseState(),
@@ -221,9 +234,19 @@ def main():
         "VOTE_DETECTIONS",
         VoteDetectionsState(),
         transitions={
-            SUCCEED: "outcome3",
-            CANCEL: "outcome4",
+            SUCCEED: "RECOGNITION",
+            CANCEL: "GET_CURRENT_POSE",
             ABORT: "outcome4",
+        },
+    )
+
+    sm.add_state(
+        "RECOGNITION",
+        RecognitionState(),
+        transitions={
+            SUCCEED: "outcome4", # All mapping to SUCCEED for now
+            CANCEL: "outcome3",
+            ABORT: "outcome3",
         },
     )
 
@@ -235,11 +258,13 @@ def main():
     blackboard["iou_threshold"] = 0.5
     blackboard["support_threshold"] = 0.4
     blackboard["batch_size"] = 50
-    blackboard["beverage"] = "bottle"
-    blackboard["rotate"] = 180
-    blackboard['yaml_path'] = '/home/robo/david_ws/src/utbots_navigation/utbots_nav/map/pitaco_waypoints.yaml'
-    blackboard['waypoint_nametag'] = 'kitchen'
+    blackboard["beverage"] = "person"
+    blackboard["rotate"] = 90
+    blackboard['yaml_path'] = '/home/laser/ros2_ws/src/utbots_navigation/utbots_nav/map/pitaco_waypoints.yaml'
+    blackboard['waypoint_nametag'] = 'living_room'
 
+    # sub = node.create_subscription(PoseWithCovarianceStamped, '/amcl_pose', cb, qos_profile_sensor_data)
+    # print("created sub")
     # Execute the FSM
     try:
         outcome = sm(blackboard)
