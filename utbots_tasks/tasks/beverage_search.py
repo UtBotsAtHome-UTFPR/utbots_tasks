@@ -21,6 +21,8 @@ from yasmin_ros import set_ros_loggers
 from yasmin_ros.basic_outcomes import SUCCEED, ABORT, CANCEL
 from yasmin_viewer import YasminViewerPub
 
+from utbots_tasks.states.basic_face import RecognitionState, NewFaceState
+
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy, QoSDurabilityPolicy
 
 custom_qos = QoSProfile(
@@ -169,6 +171,26 @@ def main():
 
     # Create a finite state machine (FSM)
     sm = StateMachine(outcomes=["outcome4", "outcome3"])
+
+    '''sm.add_state(
+        "NEW_FACE",
+        NewFaceState(),
+        transitions={
+            SUCCEED: "RECOGNITION", # All mapping to SUCCEED for now
+            CANCEL: "outcome3",
+            ABORT: "outcome3",
+        },
+    )
+
+    sm.add_state(
+        "RECOGNITION",
+        RecognitionState(),
+        transitions={
+            SUCCEED: "GO_TO_KITCHEN", # All mapping to SUCCEED for now
+            CANCEL: "outcome3",
+            ABORT: "outcome3",
+        },
+    )'''
 
     sm.add_state(
         "GO_TO_KITCHEN",

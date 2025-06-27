@@ -1,5 +1,4 @@
 import rclpy
-from example_interfaces.action import Fibonacci
 
 import yasmin
 from yasmin import CbState, Blackboard, StateMachine
