@@ -26,9 +26,10 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'beverage_search = utbots_tasks.tasks.beverage_search:main',
             'recognition = utbots_tasks.states.basic_face:main',
+            'beverage_search = utbots_tasks.tasks.beverage_search:main',
             'voice_nav_smach = utbots_tasks.tasks.voice_nav:main',
+            'receptionist = utbots_tasks.tasks.receptionist:main'
         ],
     },
 )
