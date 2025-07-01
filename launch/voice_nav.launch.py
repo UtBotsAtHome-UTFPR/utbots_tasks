@@ -34,13 +34,13 @@ def launch_setup(context, *args, **kwargs):
 
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(os.path.join(launch_dir_stt, 'stt_launch.py')),
-            # launch_arguments={'map_name': map_name}.items() 
+            # launch_arguments={'verbose': 'false'}.items() 
         ),
     ])
 def generate_launch_description():
     return LaunchDescription([
-        DeclareLaunchArgument('map_name',default_value='',description='pitaco') ,
         DeclareLaunchArgument('use_sim', default_value='true',description=''),
+        DeclareLaunchArgument('map_name',default_value='',description='pitaco') ,
         DeclareLaunchArgument('lidar_port', default_value='/dev/ttyUSB0',description=''),
 
         OpaqueFunction(function=launch_setup),
@@ -52,15 +52,30 @@ def generate_launch_description():
             emulate_tty=True,
             parameters=[
                 {
-                        # 'whisper_verbose':True,
-                        # 'enable_synchronous_startup':False,
-                        # 'timer_period':0.5,
-                        # 'whisper_model':"openai/whisper-large-v3-turbo",
-                        # # 'whisper_model':"openai/whisper-tiny.en",
-                        # 'whisper_startup':True,
-                        # 'enable_synchronous_startup':False,
-                        # 'wait_timeout':12.0
                   }
             ]
         ),
+        Node(
+            package='utbots_nlu',
+            executable='rasa_nlu_interpreter',
+            name='rasa_nlu_interpreter',
+            # output='screen',
+            emulate_tty=True,
+            parameters=[
+                {
+                  }
+            ]
+        ),
+        Node(
+            package='ros_tts',
+            executable='tts_node',
+            name='tts_node',
+            # output='screen',
+            emulate_tty=True,
+            parameters=[
+                {
+                  }
+            ]
+        ),
+
     ])

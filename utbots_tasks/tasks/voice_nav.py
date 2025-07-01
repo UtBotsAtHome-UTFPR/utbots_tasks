@@ -13,9 +13,19 @@ from utbots_actions.action import Transcription,TextToSpeech,InterpretNLU
 from utbots_msgs.msg import BoundingBoxes
 from std_msgs.msg import String
 
-from utbots_tasks.states.basic_voice import WhisperTTSState
+from utbots_tasks.states.basic_voice import WhisperSTTState,whisper_process_cb
 
-from utbots_tasks.states.basic_voice import print_result as whisper_print_result
+from utbots_tasks.states.basic_voice import NLUInference,get_process_nlu,nlu_process_cb
+
+from utbots_tasks.states.basic_voice import CoquiTTSState
+
+from utbots_tasks.states.basic_voice import wait_cb
+
+# from utbots_tasks.states.basic_voice import print_result as whisper_print_result
+
+from utbots_tasks.tasks.beverage_search import GoToWaypointState
+
+PROCESS_NLU=get_process_nlu()
 
 def main():
     """
@@ -42,33 +52,155 @@ def main():
     set_ros_loggers()
 
     # Create a finite state machine (FSM)
-    sm = StateMachine(outcomes=["outcome4"])
+    sm = StateMachine(outcomes=["exit"])
 
     # Add states to the FSM
+
+    sm.add_state(
+        "WAIT_INITIALIZATION",
+        CbState(["waited"],wait_cb),
+        transitions={
+            "waited": "WHISPER_PROCESS",
+        },
+    )
+
     sm.add_state(
         "CALLING_WHISPER",
-        WhisperTTSState(),
+        WhisperSTTState(),
         transitions={
-            SUCCEED: "PRINTING_RESULT",
-            CANCEL: "outcome4",
-            ABORT: "outcome4",
+            SUCCEED: "WHISPER_PROCESS",
+            CANCEL: "exit",
+            ABORT: "exit",
         },
     )
     sm.add_state(
-        "PRINTING_RESULT",
-        CbState([SUCCEED], whisper_print_result),
+        "WHISPER_PROCESS",
+        CbState(["process_whisper1","process_whisper2","process_whisper3"],whisper_process_cb),
         transitions={
-            SUCCEED: "CALLING_WHISPER",
-            # SUCCEED: "outcome4",
+            "process_whisper1": "CALLING_WHISPER",
+            "process_whisper2": "NLU_INFERENCE",
+            # "process_whisper3": "outcome4",
+
         },
     )
+    sm.add_state(
+        "NLU_INFERENCE",
+        NLUInference(),
+        transitions={
+            SUCCEED: "NLU_PROCESS",
+            CANCEL: "exit",
+            ABORT: "exit",
+        },
+        remappings={"nlu_input_text": "whispered"},
+    )
+# PROCESS_NLU=[ "greet",
+#     "introduce_robot",
+#     "affirm",
+#     "deny",
+#     "mood_great",
+#     "mood_unhappy",
+#     "follow",
+#     "stop",
+#     "go_to",
+#     "say_operator_name",
+#     "identify_operator",
+#     "describe_ambient",
+#     "default",]
+
+    sm.add_state(
+        "NLU_PROCESS",
+        CbState(PROCESS_NLU,nlu_process_cb),
+        transitions={
+            PROCESS_NLU[0]: "TALK",
+            PROCESS_NLU[1]: "TALK",
+            PROCESS_NLU[2]: "TALK",
+            PROCESS_NLU[3]: "TALK",
+            PROCESS_NLU[4]: "TALK",
+            PROCESS_NLU[5]: "TALK",
+            PROCESS_NLU[6]: "TALK",
+            PROCESS_NLU[7]: "TALK",
+            PROCESS_NLU[8]: "NAV_TALK",
+            PROCESS_NLU[9]: "TALK",
+            PROCESS_NLU[10]: "TALK",
+            PROCESS_NLU[11]: "TALK",
+            PROCESS_NLU[12]: "TALK",
+        },
+    )
+
+
+    sm.add_state(
+        "NAV_TALK",
+        CoquiTTSState(),
+        transitions={
+            SUCCEED: "NAV",
+            CANCEL: "exit",
+            ABORT: "exit",
+        },
+    )
+
+    sm.add_state(
+        "TALK",
+        CoquiTTSState(),
+        transitions={
+            SUCCEED: "CALLING_WHISPER",
+            CANCEL: "exit",
+            ABORT: "exit",
+        },
+    )
+
+    sm.add_state(
+        "NAV",
+        GoToWaypointState(),
+        transitions={
+            SUCCEED: "CALLING_WHISPER",
+            CANCEL: "exit",
+            ABORT: "exit",
+        },
+    )
+
+    # sm.add_state(
+    #     "GO_TO_KITCHEN",
+    #     GoToWaypointState(),
+    #     transitions={
+    #         SUCCEED: "GET_CURRENT_POSE",
+    #         ABORT: "outcome3"
+    #     },
+    # )
+
+
 
     # Publish FSM information
     YasminViewerPub("YASMIN_ACTION_CLIENT_DEMO", sm)
-
     # Create an initial blackboard with the input value
+
+    # BLACKBOARD:
     blackboard = Blackboard()
-    blackboard["n"] = 10  # Set the Whisper order to 10
+    blackboard["tts_text"] = None
+    blackboard["text"] = None
+    blackboard["whispered"] = None
+    blackboard["nlu_input_text"] = None
+    blackboard["nlu_output"] = None # Store the result sequence in the blackboard
+
+    blackboard["nlu_intent"] = None  # Store the result sequence in the blackboard
+
+    blackboard["nlu_data"] = None # Store the result sequence in the blackboard
+
+    blackboard["waypoint_nametag"] = None
+
+
+    import subprocess
+    try:
+        map_file = subprocess.check_output(
+        ["ros2", "param", "get", "/map_server", "yaml_filename"],
+        universal_newlines=True
+        ).rsplit("String value is: ")[1]
+
+        blackboard['yaml_path'] = map_file.rsplit(".yaml")[0]+"_waypoints.yaml" #'/home/robo/david_ws/src/utbots_navigation/utbots_nav/map/pitaco_waypoints.yaml'
+    except:
+        blackboard['yaml_path'] ='/home/ehg2004/utbots_ws/src/utbots_navigation/utbots_nav/map/pitaco_waypoints.yaml'
+    # blackboard['waypoint_nametag'] = 'kitchen'
+
+
 
     # Execute the FSM
     try:
@@ -81,7 +213,6 @@ def main():
     # Shutdown ROS 2
     if rclpy.ok():
         rclpy.shutdown()
-
 
 if __name__ == "__main__":
     main()
