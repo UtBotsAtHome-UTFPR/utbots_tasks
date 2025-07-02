@@ -12,7 +12,7 @@ from yasmin_ros.basic_outcomes import SUCCEED, ABORT, CANCEL
 from yasmin_viewer import YasminViewerPub
 
 from utbots_tasks.states.basic_face import RecognitionState, NewFaceState
-from utbots_tasks.states.basic_nav import GetCurrentPoseState, RotateInPlaceState, GoToWaypointState, WaitDoorOpenState
+from utbots_tasks.states.basic_nav import GetCurrentPoseState, RotateInPlaceState, GoToWaypointState, WaitDoorOpenState, SetInitialPose
 from utbots_tasks.states.basic_vision import FindObjectState
 
 def main():
@@ -27,10 +27,19 @@ def main():
     sm = StateMachine(outcomes=["success", "failed"])
 
     sm.add_state(
+        "SET_INIT_POSE",
+        SetInitialPose(node, 0.0, 0.0, 0.0),
+        transitions={
+            SUCCEED: "WAIT_DOOR",
+            ABORT: "failed"
+        }
+    )
+
+    sm.add_state(
         "WAIT_DOOR",
         WaitDoorOpenState(),
         transitions={
-            SUCCEED: "GO_TO_KITCHEN",
+            SUCCEED: "NEW_FACE",
             "cancel": "WAIT_DOOR",
             ABORT: "failed"
         }
@@ -103,7 +112,7 @@ def main():
     blackboard["beverage"] = "person"
     blackboard["rotate"] = 90
     blackboard['yaml_path'] = '/home/laser/ros2_ws/src/utbots_navigation/utbots_nav/map/pitaco_waypoints.yaml'
-    blackboard['waypoint_nametag'] = 'living_room'
+    blackboard['waypoint_nametag'] = 'room'
 
     try:
         outcome = sm(blackboard)

@@ -34,6 +34,8 @@ class RecognitionState(ActionState):
 
         blackboard["people"] = (response.people)
         blackboard["recognized_img"] = (response.image)
+        print(blackboard["people"])
+        # print(blackboard['recognized_img'])
         return SUCCEED
         '''self._node.get_logger().info("Here")
         if goal_status == 4:  # SUCCEEDED

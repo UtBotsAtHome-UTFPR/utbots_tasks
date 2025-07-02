@@ -33,4 +33,4 @@ class FindObjectState(ActionState):
             blackboard["detections"] = detections
             return SUCCEED
         else:
-            return "not_detected"
+            return "canceled"

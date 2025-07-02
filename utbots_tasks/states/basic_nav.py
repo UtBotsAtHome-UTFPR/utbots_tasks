@@ -12,12 +12,33 @@ import time
 import yaml
 import math
 from tf_transformations import quaternion_multiply, quaternion_from_euler
+from rclpy.node import Node
+import rclpy
+from math import sin, cos
 
 custom_qos = QoSProfile(
     reliability=QoSReliabilityPolicy.RELIABLE,
     durability=QoSDurabilityPolicy.TRANSIENT_LOCAL,
     depth=10
 )
+
+class SetInitialPose(State):
+    def __init__(self, node, x, y, yaw):
+        super().__init__([SUCCEED, ABORT])
+        self.x, self.y, self.yaw = x, y, yaw
+        self.node = node
+
+    def execute(self, blackboard):
+        pub = self.node.create_publisher(PoseWithCovarianceStamped, '/initialpose', 10)
+        msg = PoseWithCovarianceStamped()
+        msg.header.stamp = self.node.get_clock().now().to_msg() # Set to current time
+        msg.header.frame_id = 'map'
+        msg.pose.pose.position.x = self.x
+        msg.pose.pose.position.y = self.y
+        msg.pose.pose.orientation.z = sin(self.yaw/2)
+        msg.pose.pose.orientation.w = cos(self.yaw/2)
+        pub.publish(msg)
+        return SUCCEED
 
 class GetCurrentPoseState(MonitorState):
     def __init__(self) -> None:
@@ -113,25 +134,29 @@ class GoToWaypointState(ActionState):
         with open(blackboard["yaml_path"], 'r') as file:
             data = yaml.safe_load(file)
 
-        for pose_data in data['poses']:
-            if pose_data['nametag'] == nametag:
+        for waypoint in data['waypoints']:
+            if waypoint == nametag:
+                pose_data = data['waypoints'][waypoint]
                 pose_stamped = PoseStamped()
-                pose_stamped.header.stamp.sec = pose_data['header']['stamp']['secs']
-                pose_stamped.header.stamp.nanosec = pose_data['header']['stamp']['nsecs']
-                pose_stamped.header.frame_id = pose_data['header']['frame_id']
+                # pose_stamped.header.stamp.sec = pose_data['header']['stamp']['secs']
+                # pose_stamped.header.stamp.nanosec = pose_data['header']['stamp']['nsecs']
+                pose_stamped.header.frame_id = 'map'
 
-                pose_stamped.pose.position.x = pose_data['pose']['position']['x']
-                pose_stamped.pose.position.y = pose_data['pose']['position']['y']
-                pose_stamped.pose.position.z = pose_data['pose']['position']['z']
+                pose_stamped.pose.position.x = pose_data['position']['x']
+                pose_stamped.pose.position.y = pose_data['position']['y']
+                pose_stamped.pose.position.z = pose_data['position']['z']
 
-                pose_stamped.pose.orientation.x = pose_data['pose']['orientation']['x']
-                pose_stamped.pose.orientation.y = pose_data['pose']['orientation']['y']
-                pose_stamped.pose.orientation.z = pose_data['pose']['orientation']['z']
-                pose_stamped.pose.orientation.w = pose_data['pose']['orientation']['w']
+                pose_stamped.pose.orientation.x = pose_data['orientation']['x']
+                pose_stamped.pose.orientation.y = pose_data['orientation']['y']
+                pose_stamped.pose.orientation.z = pose_data['orientation']['z']
+                pose_stamped.pose.orientation.w = pose_data['orientation']['w']
+                print(pose_stamped)
 
-                return pose_stamped
+                goal = NavigateToPose.Goal()
+                goal.pose = pose_stamped
+                return goal
         return ABORT
-
+    
 class WaitDoorOpenState(MonitorState):
     def __init__(self) -> None:
         super().__init__(LaserScan, 
