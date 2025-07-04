@@ -1,6 +1,6 @@
 from yasmin import State, Blackboard
 from yasmin_ros import MonitorState, ActionState
-from yasmin_ros.basic_outcomes import SUCCEED, ABORT
+from yasmin_ros.basic_outcomes import SUCCEED, CANCEL, ABORT
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSDurabilityPolicy
 from rclpy.node import Node
 from nav2_msgs.action import NavigateToPose
@@ -161,7 +161,7 @@ class WaitDoorOpenState(MonitorState):
     def __init__(self) -> None:
         super().__init__(LaserScan, 
                          "/scan", 
-                         [SUCCEED, ABORT, "cancel"], 
+                         [SUCCEED, ABORT, CANCEL], 
                          self.monitor_handler, 
                          msg_queue=10, 
                          timeout=30)
@@ -180,7 +180,7 @@ class WaitDoorOpenState(MonitorState):
                 time.sleep(5)
                 return SUCCEED
             else:
-                return "cancel"
+                return CANCEL
 
         except Exception as e:
             blackboard["log"] = f"Error while waiting for door: {e}"
