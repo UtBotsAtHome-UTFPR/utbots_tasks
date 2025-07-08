@@ -173,7 +173,7 @@ def main():
             SUCCEED: "ASK_FOLLOW",
             CANCEL: "failed",
         },
-        remappings = {"ask_drink" : "tts_text"},
+        remappings = {"tts_text" : "ask_drink"},
     )
 
     sm.add_state(
@@ -183,7 +183,7 @@ def main():
             SUCCEED: "GO_TO_KITCHEN",
             CANCEL: "failed",
         },
-        remappings = {"ask_follow" : "tts_text" },
+        remappings = {"tts_text" : "ask_follow"},
     )
 
 # Find beverage in the beverage area
@@ -251,7 +251,7 @@ def main():
             SUCCEED: "GO_TO_LIVING_ROOM",
             CANCEL: "failed",
         },
-        remappings = {"ask_follow" : "tts_text" },
+        remappings = {"tts_text" : "ask_follow"},
     )
 
 # Find seat in the living room
