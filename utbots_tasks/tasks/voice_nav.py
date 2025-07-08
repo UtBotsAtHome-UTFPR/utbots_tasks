@@ -15,7 +15,7 @@ from std_msgs.msg import String
 
 from utbots_tasks.states.basic_voice import WhisperSTTState,whisper_process_cb
 
-from utbots_tasks.states.basic_voice import NLUInference,get_process_nlu,nlu_process_cb
+from utbots_tasks.states.basic_voice import NLUInference,get_process_nlu,NLUProcess
 
 from utbots_tasks.states.basic_voice import CoquiTTSState
 
@@ -24,6 +24,10 @@ from utbots_tasks.states.basic_voice import wait_cb
 # from utbots_tasks.states.basic_voice import print_result as whisper_print_result
 
 from utbots_tasks.tasks.beverage_search import GoToWaypointState
+
+from rcl_interfaces.msg import ParameterDescriptor
+
+from rclpy.node import Node
 
 PROCESS_NLU=get_process_nlu()
 
@@ -51,6 +55,21 @@ def main():
     # Set up ROS 2 logs
     set_ros_loggers()
 
+
+    # # Create a temporary node just for declaring/reading parameters
+    # node = Node("yasmin_main_node")
+
+    # # Declare parameter
+    # node.declare_parameter(
+    #     'verbose',
+    #     False,
+    #     ParameterDescriptor(
+    #         description='Enable verbose logging for the RASA NLU interpreter. Default is False.') 
+    # )
+
+    # # Read the value
+    # verbose = node.get_parameter('verbose').get_parameter_value().bool_value
+    verbose = True  # Set verbose to False for less logging output
     # Create a finite state machine (FSM)
     sm = StateMachine(outcomes=["exit"])
 
@@ -109,7 +128,11 @@ def main():
 
     sm.add_state(
         "NLU_PROCESS",
-        CbState(PROCESS_NLU,nlu_process_cb),
+        NLUProcess(verbose),  # Set verbose to True for detailed logging
+        remappings={
+            "nlu_input_text": "whispered",  # Input from the Whisper STT state
+            # "nlu_input_text": "whispered",  # Input from the Whisper STT state
+            },              
         transitions={
             PROCESS_NLU[0]: "TALK",
             PROCESS_NLU[1]: "TALK",
@@ -156,6 +179,10 @@ def main():
             CANCEL: "exit",
             ABORT: "exit",
         },
+        remappings={
+            "waypoint_nametag": "nlu_data",  # Input from the Whisper STT state
+            # "nlu_input_text": "whispered",  # Input from the Whisper STT state
+            },              
     )
 
     # sm.add_state(
@@ -187,6 +214,14 @@ def main():
 
     blackboard["waypoint_nametag"] = None
 
+    # blackboard["iou_threshold"] = 0.5
+    # blackboard["support_threshold"] = 0.4
+    # blackboard["batch_size"] = 50
+    # blackboard["beverage"] = "person"
+    # blackboard["rotate"] = 90
+    # blackboard['yaml_path'] = '/home/laser/ros2_ws/src/utbots_navigation/utbots_nav/map/pitaco_waypoints.yaml'
+    # blackboard['waypoint_nametag'] = 'living_room'
+
 
     import subprocess
     try:
@@ -194,10 +229,14 @@ def main():
         ["ros2", "param", "get", "/map_server", "yaml_filename"],
         universal_newlines=True
         ).rsplit("String value is: ")[1]
-
+        map_file = map_file.strip()  # Remove any leading/trailing whitespace
+        print(f"Map file found: {map_file}")
+        # Set the yaml_path in the blackboard
         blackboard['yaml_path'] = map_file.rsplit(".yaml")[0]+"_waypoints.yaml" #'/home/robo/david_ws/src/utbots_navigation/utbots_nav/map/pitaco_waypoints.yaml'
+        print(f"Map file found: {blackboard['yaml_path']}")
     except:
         blackboard['yaml_path'] ='/home/ehg2004/utbots_ws/src/utbots_navigation/utbots_nav/map/pitaco_waypoints.yaml'
+        print(f"Map file found: {blackboard['yaml_path']}")
     # blackboard['waypoint_nametag'] = 'kitchen'
 
 
