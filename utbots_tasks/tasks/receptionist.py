@@ -12,6 +12,7 @@ from yasmin_viewer import YasminViewerPub
 
 from utbots_tasks.states.basic_face import RecognitionState, NewFaceState
 from utbots_tasks.states.basic_nav import GetCurrentPoseState, RotateInPlaceState, GoToWaypointState, WaitDoorOpenState, SetInitialPose
+from utbots_tasks.states.basic_voice import CoquiTTSState       
 from utbots_tasks.states.basic_vision import FindObjectState
 
 class PointToObjectState(State):
@@ -36,12 +37,12 @@ class PointToObjectState(State):
             else:
                 response = f"Your {object} is to my left."
             yasmin.YASMIN_LOG_INFO(response)
-            blackboard["tts"] = response
+            blackboard["tts_text"] = response
             return SUCCEED
         else:
             response = f"Your {object} is not here."
             yasmin.YASMIN_LOG_INFO(response)
-            blackboard["tts"] = response
+            blackboard["tts_text"] = response
             return CANCEL
 
 class CalculateIOUsState(State):
@@ -67,13 +68,13 @@ class CalculateIOUsState(State):
                             min_iou = iou
                             best_pair = (box1, box2)
                 if min_iou > blackboard["iou_threshold"]:
-                    blackboard["tts"] = "Sorry, there is no seat available for you"
-                    return ABORT
+                    blackboard["tts_text"] = "Sorry, there is no seat available for you"
+                    return CANCEL
                 blackboard["object_bbox"] = [best_pair[0]]
             return SUCCEED
         else:
-            blackboard["tts"] = "Sorry, there is no seat available for you"
-            return ABORT
+            blackboard["tts_text"] = "Sorry, there is no seat available for you"
+            return CANCEL
 
     def compute_iou(self, box1, box2):
         # Unpack coordinates
@@ -116,112 +117,171 @@ def main():
     # Create a finite state machine (FSM)
     sm = StateMachine(outcomes=["success", "failed"])
 
-#     sm.add_state(
-#         "SET_INIT_POSE",
-#         SetInitialPose(node, 0.0, 0.0, 0.0),
-#         transitions={
-#             SUCCEED: "WAIT_DOOR",
-#             ABORT: "failed"
-#         }
-#     )
+    sm.add_state(
+        "SET_INIT_POSE",
+        SetInitialPose(node, 0.0, 0.0, 0.0),
+        transitions={
+            SUCCEED: "WAIT_DOOR",
+            ABORT: "failed"
+        }
+    )
 
-#     sm.add_state(
-#         "WAIT_DOOR",
-#         WaitDoorOpenState(),
-#         transitions={
-#             SUCCEED: "NEW_FACE",
-#             CANCEL: "WAIT_DOOR",
-#             ABORT: "failed"
-#         }
-#     )
+    sm.add_state(
+        "WAIT_DOOR",
+        WaitDoorOpenState(),
+        transitions={
+            SUCCEED: "COME_IN",
+            CANCEL: "WAIT_DOOR",
+            ABORT: "failed"
+        }
+    )
 
-#     sm.add_state(
-#         "NEW_FACE",
-#         NewFaceState(),
-#         transitions={
-#             SUCCEED: "GO_TO_KITCHEN", # All mapping to SUCCEED for now
-#             CANCEL: "failed",
-#             ABORT: "failed",
-#         },
-#     )
+    sm.add_state(
+        "COME_IN",
+        CoquiTTSState(),
+        transitions={
+            SUCCEED: "GREET_AND_NAME",
+            CANCEL: "failed",
+        },
+        remappings = {"tts_text" : "come_in"},
+    )
 
-# # Find beverage in the beverage area
+    sm.add_state(
+        "GREET_AND_NAME",
+        CoquiTTSState(),
+        transitions={
+            SUCCEED: "NEW_FACE",
+            CANCEL: "failed",
+        },
+        remappings = {"tts_text" : "greet_and_name"},
+    )
 
-    # sm.add_state(
-    #     "GO_TO_KITCHEN",
-    #     GoToWaypointState(),
-    #     transitions={
-    #         SUCCEED: "GET_CURRENT_POSE",
-    #         ABORT: "failed"
-    #     },
-    # )
+    sm.add_state(
+        "NEW_FACE",
+        NewFaceState(),
+        transitions={
+            SUCCEED: "ASK_DRINK", # All mapping to SUCCEED for now
+            CANCEL: "failed",
+            ABORT: "failed",
+        },
+    )
 
-    # sm.add_state(
-    #     "GET_CURRENT_POSE",
-    #     GetCurrentPoseState(),
-    #     transitions={
-    #         SUCCEED: "ROTATE",
-    #         ABORT: "failed"
-    #     },
-    # )
-    # sm.add_state(
-    #     "ROTATE",
-    #     RotateInPlaceState(node),
-    #     transitions={
-    #         SUCCEED: "FIND_BEVERAGE",
-    #         CANCEL: "failed",
-    #         ABORT: "failed",
-    #     },
-    # )
+    sm.add_state(
+        "ASK_DRINK",
+        CoquiTTSState(),
+        transitions={
+            SUCCEED: "ASK_FOLLOW",
+            CANCEL: "failed",
+        },
+        remappings = {"ask_drink" : "tts_text"},
+    )
 
-    # sm.add_state(
-    #     "FIND_BEVERAGE",
-    #     FindObjectState(remappings={"object": "beverage"}),
-    #     transitions={
-    #         SUCCEED: "POINT_TO_BEVERAGE",
-    #         CANCEL: "POINT_TO_BEVERAGE",
-    #         ABORT: "failed"
-    #     }
-    # )
+    sm.add_state(
+        "ASK_FOLLOW",
+        CoquiTTSState(),
+        transitions={
+            SUCCEED: "GO_TO_KITCHEN",
+            CANCEL: "failed",
+        },
+        remappings = {"ask_follow" : "tts_text" },
+    )
 
-    # sm.add_state(
-    #     "POINT_TO_BEVERAGE",
-    #     PointToObjectState(),
-    #     transitions={
-    #         SUCCEED: "success",
-    #         CANCEL: "success"
-    #     },
-    #     remappings = {"object" : "beverage"}
-    # )
+# Find beverage in the beverage area
 
-# # Find seat in the living room
+    sm.add_state(
+        "GO_TO_KITCHEN",
+        GoToWaypointState(),
+        transitions={
+            SUCCEED: "GET_CURRENT_POSE2",
+            ABORT: "failed"
+        },
+    )
 
-#     sm.add_state(
-#         "GO_TO_LIVING_ROOM",
-#         GoToWaypointState(),
-#         transitions={
-#             SUCCEED: "FIND_SEAT",
-#             ABORT: "failed"
-#         },
-#     )
+    sm.add_state(
+        "GET_CURRENT_POSE2",
+        GetCurrentPoseState(),
+        transitions={
+            SUCCEED: "ROTATE2",
+            ABORT: "failed"
+        },
+    )
+    sm.add_state(
+        "ROTATE2",
+        RotateInPlaceState(node),
+        transitions={
+            SUCCEED: "FIND_BEVERAGE",
+            CANCEL: "failed",
+            ABORT: "failed",
+        },
+    )
 
-#     sm.add_state(
-#         "GET_CURRENT_POSE",
-#         GetCurrentPoseState(),
-#         transitions={
-#             SUCCEED: "ROTATE",
-#             ABORT: "failed"
-#         },
-#     )
-#     sm.add_state(
-#         "ROTATE",
-#         RotateInPlaceState(node),
-#         transitions={
-#             SUCCEED: "FIND_SEAT",
-#             CANCEL: "failed",
-#             ABORT: "failed",
-#         },
-#     )
+    sm.add_state(
+        "FIND_BEVERAGE",
+        FindObjectState(remappings={"object": "beverage"}),
+        transitions={
+            SUCCEED: "POINT_TO_BEVERAGE",
+            CANCEL: "POINT_TO_BEVERAGE",
+            ABORT: "failed"
+        }
+    )
+
+    sm.add_state(
+        "POINT_TO_BEVERAGE",
+        PointToObjectState(),
+        transitions={
+            SUCCEED: "DRINK_POSITION_TTS",
+            CANCEL: "DRINK_POSITION_TTS"
+        },
+        remappings = {"object" : "beverage"}
+    )
+
+    sm.add_state(
+        "DRINK_POSITION_TTS",
+        CoquiTTSState(),
+        transitions={
+            SUCCEED: "ASK_FOLLOW_LIVING_ROOM",
+            CANCEL: "failed",
+        },
+    )
+
+    sm.add_state(
+        "ASK_FOLLOW_LIVING_ROOM",
+        CoquiTTSState(),
+        transitions={
+            SUCCEED: "GO_TO_LIVING_ROOM",
+            CANCEL: "failed",
+        },
+        remappings = {"ask_follow" : "tts_text" },
+    )
+
+# Find seat in the living room
+
+    sm.add_state(
+        "GO_TO_LIVING_ROOM",
+        GoToWaypointState(),
+        transitions={
+            SUCCEED: "GET_CURRENT_POSE",
+            ABORT: "failed"
+        },
+    )
+
+    sm.add_state(
+        "GET_CURRENT_POSE",
+        GetCurrentPoseState(),
+        transitions={
+            SUCCEED: "ROTATE",
+            ABORT: "failed"
+        },
+    )
+    sm.add_state(
+        "ROTATE",
+        RotateInPlaceState(node),
+        transitions={
+            SUCCEED: "FIND_SEAT",
+            CANCEL: "failed",
+            ABORT: "failed",
+        },
+    )
 
     sm.add_state(
         "FIND_PEOPLE",
@@ -248,7 +308,7 @@ def main():
         CalculateIOUsState(),
         transitions={
             SUCCEED: "POINT_TO_SEAT",
-            CANCEL: "failed",
+            CANCEL: "TTS_STATE",
         },
         remappings = {"object_bbox" : "object_bbox"},
     )
@@ -257,10 +317,19 @@ def main():
         "POINT_TO_SEAT",
         PointToObjectState(),
         transitions={
-            SUCCEED: "success",
+            SUCCEED: "TTS_STATE",
             CANCEL: "failed",
         },
         remappings = {"object" : "seat", "detections" : "object_bbox"}
+    )
+
+    sm.add_state(
+        "TTS_STATE",
+        CoquiTTSState(),
+        transitions={
+            SUCCEED: "success",
+            CANCEL: "failed",
+        },
     )
 
     sm.add_state(
@@ -287,6 +356,12 @@ def main():
     blackboard["rotate"] = 90
     blackboard['yaml_path'] = '/home/laser/ros2_ws/src/utbots_navigation/utbots_nav/map/pitaco_waypoints.yaml'
     blackboard['waypoint_nametag'] = 'room'
+
+    # TTS blackboard variables for this task
+    blackboard["come_in"] = "Hello, please come in."
+    blackboard["greet_and_name"] = "I am Hestia. What is your name."
+    blackboard["call_follow"] = "Please follow me."
+    blackboard["tts_text"] = "come_in."
 
     try:
         outcome = sm(blackboard)
