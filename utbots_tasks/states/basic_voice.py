@@ -530,7 +530,7 @@ class NLUProcess(CbState):
 
         task=blackboard["nlu_intent"]
         try:
-            data=blackboard["nlu_data"].rsplit("\"value\":")[1].rsplit(",")[0].replace('"', '')
+            data=blackboard["nlu_data"].rsplit("\"value\":")[1].rsplit(",")[0].replace('"', '').strip()
         except:
             data=None
         answer=None
@@ -585,6 +585,7 @@ class NLUProcess(CbState):
             yasmin.YASMIN_LOG_INFO(f"NLU Data: {data}")
             yasmin.YASMIN_LOG_INFO(f"Answer: {answer}")
             yasmin.YASMIN_LOG_INFO(f"Outcome: {outcome}")
+        blackboard["nlu_data"] = data
         return outcome
 
 # version: "3.1"
