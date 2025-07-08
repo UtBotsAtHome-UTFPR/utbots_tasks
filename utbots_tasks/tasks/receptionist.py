@@ -143,7 +143,7 @@ def main():
             SUCCEED: "GREET_AND_NAME",
             CANCEL: "failed",
         },
-        remappings = {"tts_text" : "come_in"},
+        remappings = {"tts_text" : "come_in"}
     )
 
     sm.add_state(
@@ -153,7 +153,7 @@ def main():
             SUCCEED: "NEW_FACE",
             CANCEL: "failed",
         },
-        remappings = {"tts_text" : "greet_and_name"},
+        remappings = {"tts_text" : "greet_and_name"}
     )
 
     sm.add_state(
@@ -173,28 +173,29 @@ def main():
             SUCCEED: "ASK_FOLLOW",
             CANCEL: "failed",
         },
-        remappings = {"tts_text" : "ask_drink"},
+        remappings = {"tts_text" : "ask_drink"}
     )
 
     sm.add_state(
         "ASK_FOLLOW",
         CoquiTTSState(),
         transitions={
-            SUCCEED: "GO_TO_KITCHEN",
+            SUCCEED: "GO_TO_ROOM",
             CANCEL: "failed",
         },
-        remappings = {"tts_text" : "ask_follow"},
+        remappings = {"tts_text" : "ask_follow"}
     )
 
 # Find beverage in the beverage area
 
     sm.add_state(
-        "GO_TO_KITCHEN",
+        "GO_TO_ROOM",
         GoToWaypointState(),
         transitions={
             SUCCEED: "GET_CURRENT_POSE2",
             ABORT: "failed"
         },
+        remappings={"waypoint_nametag" : "room"}
     )
 
     sm.add_state(
@@ -241,7 +242,7 @@ def main():
         transitions={
             SUCCEED: "ASK_FOLLOW_LIVING_ROOM",
             CANCEL: "failed",
-        },
+        }
     )
 
     sm.add_state(
@@ -251,7 +252,7 @@ def main():
             SUCCEED: "GO_TO_LIVING_ROOM",
             CANCEL: "failed",
         },
-        remappings = {"tts_text" : "ask_follow"},
+        remappings = {"tts_text" : "ask_follow"}
     )
 
 # Find seat in the living room
@@ -263,6 +264,7 @@ def main():
             SUCCEED: "GET_CURRENT_POSE",
             ABORT: "failed"
         },
+        remappings={"waypoint_nametag" : "living_room"}
     )
 
     sm.add_state(
@@ -355,12 +357,18 @@ def main():
     blackboard["person"] = "person"
     blackboard["rotate"] = 90
     blackboard['yaml_path'] = '/home/laser/ros2_ws/src/utbots_navigation/utbots_nav/map/pitaco_waypoints.yaml'
-    blackboard['waypoint_nametag'] = 'room'
+    blackboard['waypoint_room'] = 'room'
+
+    blackboard["bedroom"] = "bedroom"
+    blackboard["kitchen"] = "kitchen"
+    blackboard["living_room"] = "living_room"
+    blackboard["room"] = "room"
 
     # TTS blackboard variables for this task
     blackboard["come_in"] = "Hello, please come in."
     blackboard["greet_and_name"] = "I am Hestia. What is your name."
-    blackboard["call_follow"] = "Please follow me."
+    blackboard["ask_drink"] = "What drink would you like."
+    blackboard["ask_follow"] = "Please follow me."
     blackboard["tts_text"] = "come_in."
 
     try:
