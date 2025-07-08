@@ -298,7 +298,7 @@ class NLUInference (ActionState):
         None
     """
     
-    def __init__(self) -> None:
+    def __init__(self,verbose=False) -> None:
         """
         Initializes the NLUInference.
 
@@ -312,6 +312,9 @@ class NLUInference (ActionState):
         Returns:
             None
         """
+        self.verbose = verbose
+        if(self.verbose):
+            yasmin.YASMIN_LOG_INFO("NLUInference initialized")
         super().__init__(
             InterpretNLU,  # action type
             "/utbots/interpret_nlu",  # action name
@@ -374,17 +377,20 @@ class NLUInference (ActionState):
         # )  # Store the result sequence in the blackboard
 
         blackboard["nlu_output"] = (
-            response.nlu_output
+            response.nlu_output.data
         )  # Store the result sequence in the blackboard
 
         blackboard["nlu_intent"] = (
-            response.task
+            response.task.data
         )  # Store the result sequence in the blackboard
 
         blackboard["nlu_data"] = (
-            response.data
+            response.data.data
         )  # Store the result sequence in the blackboard
-
+        if(self.verbose):
+            yasmin.YASMIN_LOG_INFO(f"NLU Output: {blackboard['nlu_output']}")
+            yasmin.YASMIN_LOG_INFO(f"NLU Intent: {blackboard['nlu_intent']}")
+            yasmin.YASMIN_LOG_INFO(f"NLU Data: {blackboard['nlu_data']}")
         # # Goal
         # std_msgs/String nlu_input
         # ---
@@ -477,130 +483,153 @@ PROCESS_NLU=[ "greet",
 def get_process_nlu():
     return PROCESS_NLU
 
-def nlu_process_cb(blackboard: Blackboard) -> str:
+
+
+class NLUProcess(CbState):
     """
-    Retrieves the next waypoint from the list of random waypoints.
+    Class representing the NLU process.
 
-    Updates the blackboard with the pose of the next waypoint.
+    This class contains methods to handle the NLU process in a finite state machine.
 
-    Args:
-        blackboard (Blackboard): The blackboard instance holding current state data.
-
-    Returns:
-        str: Outcome indicating whether there is a next waypoint (HAS_NEXT) or if
-             navigation is complete (END).
+    Attributes:
+        None
     """
+    def __init__(self, verbose=False) -> None:
+        """
+        Initializes the NLUInference.
 
-    task=blackboard["nlu_intent"]
-    try:
-        data=blackboard["nlu_data"].rsplit("\"value\":")[1].rsplit(",")[0]
-    except:
-        data=None
-    answer=None
-    name="David"
-    ambient="Living Room"
-    outcome=None
-    match task:
-        case "greet":
-            answer="Hello, my name is hestia! How are you?"
-            outcome="greet"
-        case "introduce_robot":
-            answer="Hello, my name is hestia! Im a service robot designed by the Utbots team, from Curitiba, Brazil. \
-                (bla bla bla)"
-            outcome="introduce_robot"
-        case "affirm":
-            answer="I agree"
-            outcome="affirm"
-        case "deny":
-            answer="I disagree"
-            outcome="deny"
-        case "mood_great":
-            answer="Amazing!"
-            outcome="mood_great"
-        case "mood_unhappy":
-            answer="Oh thats sad!"
-            outcome="mood_unhappy"
-        case "follow":
-            answer="I was asked to follow the operator. Wait for follow mode to start..."
-            outcome="follow"
-        case "stop":
-            answer="I was asked to stop! Stopping..."
-            outcome="stop"
-        case "go_to":
-            answer=f"I was asked to go to the {data}! Navigation starting..."
-            blackboard["waypoint_nametag"]=data
-            outcome="go_to"
-        case "say_operator_name":
-            answer=f"I was asked to say the operators name! The name is {name}"
-            outcome="say_operator_name"
-        case "identify_operator":
-            answer=f"I was asked to say the operators name! The name is {name}"
-            outcome="identify_operator"
-        case "describe_ambient":
-            answer=f"I was asked to describe the ambient f{ambient}!"
-            outcome="describe_ambient"
-        case _:  # Default case
-            answer="Hello, my name is hestia! I wasnt able to understand what you said to me!"
-            outcome="default"
-    blackboard["tts_text"]=answer
-    return outcome
+        Sets up the action type and the action name for the Whisper
+        action. Initializes goal, response handler, and feedback
+        processing callbacks.
 
-        # blackboard["nlu_output"] = (
-        #     response.nlu_output
-        # )  # Store the result sequence in the blackboard
+        Parameters:
+            None
 
-        # blackboard["nlu_intent"] = (
-        #     response.task
-        # )  # Store the result sequence in the blackboard
+        Returns:
+            None
+        """
+        super().__init__(
+            PROCESS_NLU,self.nlu_process_cb
+        )
 
-        # blackboard["nlu_data"] = (
-        #     response.data
-        # )  # Store the result sequence in the blackboard
+        self.verbose = verbose
 
+    def nlu_process_cb(self,blackboard: Blackboard) -> str:
+        """
+        Retrieves the next waypoint from the list of random waypoints.
+
+        Updates the blackboard with the pose of the next waypoint.
+
+        Args:
+            blackboard (Blackboard): The blackboard instance holding current state data.
+
+        Returns:
+            str: Outcome indicating whether there is a next waypoint (HAS_NEXT) or if
+                navigation is complete (END).
+        """
+
+        task=blackboard["nlu_intent"]
+        try:
+            data=blackboard["nlu_data"].rsplit("\"value\":")[1].rsplit(",")[0].replace('"', '')
+        except:
+            data=None
+        answer=None
+        name="David"
+        ambient="Living Room"
+        outcome=None
+        match task:
+            case "greet":
+                answer="Hello, my name is hestia!How are you?"
+                outcome="greet"
+            case "introduce_robot":
+                answer="Hello, my name is hestia!Im a service robot designed by the Utbots team, from Curitiba, Brazil. \
+                    (bla bla bla)."
+                outcome="introduce_robot"
+            case "affirm":
+                answer="I agree"
+                outcome="affirm"
+            case "deny":
+                answer="I disagree"
+                outcome="deny"
+            case "mood_great":
+                answer="Amazing!"
+                outcome="mood_great"
+            case "mood_unhappy":
+                answer="Oh thats sad!"
+                outcome="mood_unhappy"
+            case "follow":
+                answer="I was asked to follow the operator.Wait for follow mode to start."
+                outcome="follow"
+            case "stop":
+                answer="I was asked to stop! Stopping."
+                outcome="stop"
+            case "go_to":
+                answer=f"I was asked to go to the {data}!Navigation starting."
+                blackboard["waypoint_nametag"]=data
+                outcome="go_to"
+            case "say_operator_name":
+                answer=f"I was asked to say the operators name!The name is {name}."
+                outcome="say_operator_name"
+            case "identify_operator":
+                answer=f"I was asked to say the operators name!The name is {name}."
+                outcome="identify_operator"
+            case "describe_ambient":
+                answer=f"I was asked to describe the ambient f{ambient}!"
+                outcome="describe_ambient"
+            case _:  # Default case
+                answer="Hello, my name is hestia!I wasn't able to understand what you said to me!"
+                outcome="default"
+        blackboard["tts_text"]=answer
+        if(self.verbose):
+            yasmin.YASMIN_LOG_INFO(f"NLU Intent: {task}")
+            yasmin.YASMIN_LOG_INFO(f"NLU Data: {data}")
+            yasmin.YASMIN_LOG_INFO(f"Answer: {answer}")
+            yasmin.YASMIN_LOG_INFO(f"Outcome: {outcome}")
+        return outcome
 
 # version: "3.1"
 
 # nlu:
 # - intent: greet
-#...
+#.
 # - intent: introduce_robot
-#...
+#.
 # - intent: affirm
-#...
+#.
 
 # - intent: deny
-#...
+#.
 # - intent: mood_great
-#...
+#.
 # - intent: mood_unhappy
-#...
+#.
 # - intent: follow
-#...
+#.
 # - intent: stop
-#...
+#.
 # - intent: go_to
 #   examples: |
 #     - go to the [kitchen](room)
 #     - navigate to the [living room](room)
 #     - navigate to the [bedroom](room)
 #     - navigate to the [office](room)
-#...
+#.
 # - intent: identify_operator
-#...
+#.
 # - intent: say_operator_name
 #   examples: |
 #     - My name is [James](person) 
-#...
+#.
 #     -I am [James](person) 
-#...
+#.
 #     - [James](person) 
-#...
+#.
 #     - My name is [Mary](person)
-#...
+#.
 #     -I am [Mary](person)
-#...
+#.
 #     - [Mary](person)
-#...
+#.
 
 # - intent: describe_ambient
-#...
+#.
