@@ -3,7 +3,6 @@ import rclpy
 import numpy as np
 if not hasattr(np, 'float'):
     np.float = float
-
 import yasmin
 from yasmin import CbState, Blackboard, StateMachine, State
 from yasmin_ros import set_ros_loggers
@@ -11,9 +10,17 @@ from yasmin_ros.basic_outcomes import SUCCEED, ABORT, CANCEL
 from yasmin_viewer import YasminViewerPub
 
 from utbots_tasks.states.basic_face import RecognitionState, NewFaceState
+
 from utbots_tasks.states.basic_nav import GetCurrentPoseState, RotateInPlaceState, GoToWaypointState, WaitDoorOpenState, SetInitialPose
-from utbots_tasks.states.basic_voice import CoquiTTSState       
+
 from utbots_tasks.states.basic_vision import FindObjectState
+
+from utbots_tasks.states.basic_voice import CoquiTTSState       
+from utbots_tasks.states.basic_voice import WhisperSTTState,whisper_process_cb
+from utbots_tasks.states.basic_voice import NLUInference,get_process_nlu,NLUProcess
+from utbots_tasks.states.basic_voice import wait_cb
+
+PROCESS_NLU=get_process_nlu()
 
 class PointToObjectState(State):
     def __init__(self) -> None:
@@ -121,20 +128,20 @@ def main():
         "SET_INIT_POSE",
         SetInitialPose(node, 0.0, 0.0, 0.0),
         transitions={
-            SUCCEED: "WAIT_DOOR",
+            SUCCEED: "COME_IN",
             ABORT: "failed"
         }
     )
 
-    sm.add_state(
-        "WAIT_DOOR",
-        WaitDoorOpenState(),
-        transitions={
-            SUCCEED: "COME_IN",
-            CANCEL: "WAIT_DOOR",
-            ABORT: "failed"
-        }
-    )
+    # sm.add_state(
+    #     "WAIT_DOOR",
+    #     WaitDoorOpenState(),
+    #     transitions={
+    #         SUCCEED: "COME_IN",
+    #         CANCEL: "WAIT_DOOR",
+    #         ABORT: "failed"
+    #     }
+    # )
 
     sm.add_state(
         "COME_IN",
@@ -150,10 +157,66 @@ def main():
         "GREET_AND_NAME",
         CoquiTTSState(),
         transitions={
-            SUCCEED: "NEW_FACE",
+            SUCCEED: "CALLING_WHISPER",
             CANCEL: "failed",
         },
         remappings = {"tts_text" : "greet_and_name"}
+    )
+
+    sm.add_state(
+        "CALLING_WHISPER",
+        WhisperSTTState(),
+        transitions={
+            SUCCEED: "WHISPER_PROCESS",
+            CANCEL: "failed",
+            ABORT: "failed",
+        },
+    )
+
+    sm.add_state(
+        "WHISPER_PROCESS",
+        CbState(["process_whisper1","process_whisper2","process_whisper3"],whisper_process_cb),
+        transitions={
+            "process_whisper1": "CALLING_WHISPER",
+            "process_whisper2": "NLU_INFERENCE",
+            # "process_whisper3": "outcome4",
+
+        },
+    )
+
+    sm.add_state(
+        "NLU_INFERENCE",
+        NLUInference(),
+        transitions={
+            SUCCEED: "NLU_PROCESS",
+            CANCEL: "failed",
+            ABORT: "failed",
+        },
+        remappings={"nlu_input_text": "whispered"},
+    )
+
+    sm.add_state(
+        "NLU_PROCESS",
+        NLUProcess(True),  # Set verbose to True for detailed logging
+        #remappings={
+        #    "nlu_input_text": "whispered",  # Input from the Whisper STT state
+        #    },              
+        transitions={
+            PROCESS_NLU[0]: "GREET_AND_NAME",
+            PROCESS_NLU[1]: "GREET_AND_NAME",
+            PROCESS_NLU[2]: "GREET_AND_NAME",
+            PROCESS_NLU[3]: "GREET_AND_NAME",
+            PROCESS_NLU[4]: "GREET_AND_NAME",
+            PROCESS_NLU[5]: "GREET_AND_NAME",
+            PROCESS_NLU[6]: "GREET_AND_NAME",
+            PROCESS_NLU[7]: "GREET_AND_NAME",
+            PROCESS_NLU[8]: "GREET_AND_NAME",
+            PROCESS_NLU[9]: "NEW_FACE",
+            PROCESS_NLU[10]: "NEW_FACE",
+            PROCESS_NLU[11]: "GREET_AND_NAME",
+            PROCESS_NLU[12]: "GREET_AND_NAME",
+            #PROCESS_NLU[14]: "TALK",
+        },
     )
 
     sm.add_state(
@@ -164,6 +227,7 @@ def main():
             CANCEL: "failed",
             ABORT: "failed",
         },
+        remappings={"operator" : "nlu_data"}
     )
 
     sm.add_state(

@@ -5,6 +5,7 @@ from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 from launch.substitutions import ThisLaunchFileDir
 from ament_index_python.packages import get_package_share_directory
+
 import os
 
 def generate_launch_description():
@@ -63,8 +64,30 @@ def generate_launch_description():
             name='usb_cam',
             output='screen',
             parameters=[{
-                'video_device': '/dev/video2'
+                'video_device': '/dev/video0'
             }]
+        ),
+        # Node(
+        #     package='utbots_nlu',
+        #     executable='rasa_nlu_interpreter',
+        #     name='rasa_nlu_interpreter',
+        #     # output='screen',
+        #     emulate_tty=True,
+        #     parameters=[
+        #         {
+        #           }
+        #     ]
+        # ),
+        Node(
+            package='ros_tts',
+            executable='tts_node',
+            name='tts_node',
+            # output='screen',
+            emulate_tty=True,
+            parameters=[
+                {
+                  }
+            ]
         ),
 
         # # Launch receptionist node
