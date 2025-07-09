@@ -197,10 +197,7 @@ def main():
 
     sm.add_state(
         "NLU_PROCESS",
-        NLUProcess(True),  # Set verbose to True for detailed logging
-        #remappings={
-        #    "nlu_input_text": "whispered",  # Input from the Whisper STT state
-        #    },              
+        NLUProcess(True),  # Set verbose to True for detailed logging     
         transitions={
             PROCESS_NLU[0]: "GREET_AND_NAME",
             PROCESS_NLU[1]: "GREET_AND_NAME",
@@ -211,11 +208,72 @@ def main():
             PROCESS_NLU[6]: "GREET_AND_NAME",
             PROCESS_NLU[7]: "GREET_AND_NAME",
             PROCESS_NLU[8]: "GREET_AND_NAME",
-            PROCESS_NLU[9]: "NEW_FACE",
-            PROCESS_NLU[10]: "NEW_FACE",
+            PROCESS_NLU[9]: "GREET_AND_NAME_VER",
+            PROCESS_NLU[10]: "GREET_AND_NAME_VER",
             PROCESS_NLU[11]: "GREET_AND_NAME",
             PROCESS_NLU[12]: "GREET_AND_NAME",
-            #PROCESS_NLU[14]: "TALK",
+        },
+    )
+
+    sm.add_state(
+        "GREET_AND_NAME_VER",
+        CoquiTTSState(),
+        transitions={
+            SUCCEED: "CALLING_WHISPER_VER",
+            CANCEL: "failed",
+        },
+        remappings = {"tts_text" : "greet_and_name"}
+    )
+
+    sm.add_state(
+        "CALLING_WHISPER_VER",
+        WhisperSTTState(),
+        transitions={
+            SUCCEED: "WHISPER_PROCESS_VER",
+            CANCEL: "failed",
+            ABORT: "failed",
+        },
+    )
+
+    sm.add_state(
+        "WHISPER_PROCESS_VER",
+        CbState(["process_whisper1","process_whisper2","process_whisper3"],whisper_process_cb),
+        transitions={
+            "process_whisper1": "CALLING_WHISPER_VER",
+            "process_whisper2": "NLU_INFERENCE_VER",
+            # "process_whisper3": "outcome4",
+
+        },
+    )
+
+    sm.add_state(
+        "NLU_INFERENCE_VER",
+        NLUInference(),
+        transitions={
+            SUCCEED: "NLU_PROCESS_VER",
+            CANCEL: "failed",
+            ABORT: "failed",
+        },
+        remappings={"nlu_input_text": "whispered"},
+    )
+
+    sm.add_state(
+        "NLU_PROCESS_VER",
+        NLUProcess(True),  # Set verbose to True for detailed logging     
+        transitions={
+            PROCESS_NLU[0]: "GREET_AND_NAME_VER",
+            PROCESS_NLU[1]: "GREET_AND_NAME_VER",
+            PROCESS_NLU[2]: "NEW_FACE",
+            PROCESS_NLU[3]: "GREET_AND_NAME_VER",
+            PROCESS_NLU[4]: "GREET_AND_NAME_VER",
+            PROCESS_NLU[5]: "GREET_AND_NAME_VER",
+            PROCESS_NLU[6]: "GREET_AND_NAME_VER",
+            PROCESS_NLU[7]: "GREET_AND_NAME_VER",
+            PROCESS_NLU[8]: "GREET_AND_NAME_VER",
+            PROCESS_NLU[9]: "GREET_AND_NAME_VER",
+            PROCESS_NLU[10]: "GREET_AND_NAME_VER",
+            PROCESS_NLU[11]: "GREET_AND_NAME_VER",
+            PROCESS_NLU[12]: "GREET_AND_NAME_VER",
         },
     )
 
