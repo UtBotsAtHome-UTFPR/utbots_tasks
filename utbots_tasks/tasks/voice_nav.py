@@ -124,6 +124,8 @@ def main():
 #     "say_operator_name",
 #     "identify_operator",
 #     "describe_ambient",
+# "like_drink"
+#"pick_object"
 #     "default",]
 
     sm.add_state(
@@ -147,6 +149,8 @@ def main():
             PROCESS_NLU[10]: "TALK",
             PROCESS_NLU[11]: "TALK",
             PROCESS_NLU[12]: "TALK",
+            PROCESS_NLU[13]: "TALK",
+            PROCESS_NLU[14]: "TALK",
         },
     )
 
@@ -229,8 +233,9 @@ def main():
         ["ros2", "param", "get", "/map_server", "yaml_filename"],
         universal_newlines=True
         ).rsplit("String value is: ")[1]
-        map_file = map_file.strip()  # Remove any leading/trailing whitespace
+        # map_file = map_file.strip()  # Remove any leading/trailing whitespace
         print(f"Map file found: {map_file}")
+        blackboard
         # Set the yaml_path in the blackboard
         blackboard['yaml_path'] = map_file.rsplit(".yaml")[0]+"_waypoints.yaml" #'/home/robo/david_ws/src/utbots_navigation/utbots_nav/map/pitaco_waypoints.yaml'
         print(f"Map file found: {blackboard['yaml_path']}")

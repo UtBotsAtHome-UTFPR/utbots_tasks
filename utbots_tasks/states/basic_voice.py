@@ -478,6 +478,8 @@ PROCESS_NLU=[ "greet",
     "say_operator_name",
     "identify_operator",
     "describe_ambient",
+    "like_drink"
+    "pick_object",
     "default",]
 
 def get_process_nlu():
@@ -534,8 +536,8 @@ class NLUProcess(CbState):
         except:
             data=None
         answer=None
-        name="David"
-        ambient="Living Room"
+        name=data
+        ambient=data
         outcome=None
         match task:
             case "greet":
@@ -575,6 +577,12 @@ class NLUProcess(CbState):
                 outcome="identify_operator"
             case "describe_ambient":
                 answer=f"I was asked to describe the ambient f{ambient}!"
+                outcome="describe_ambient"
+            case "like_drink":
+                answer=f"The operator likes f{data}!"
+                outcome="describe_ambient"
+            case "pick_object":
+                answer=f"I was asked to pick f{data}!"
                 outcome="describe_ambient"
             case _:  # Default case
                 answer="Hello, my name is hestia!I wasn't able to understand what you said to me!"

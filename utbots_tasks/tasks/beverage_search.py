@@ -80,6 +80,7 @@ class GoToWaypointState(ActionState):
         nametag = blackboard["waypoint_nametag"]
         yaml_path = blackboard["yaml_path"]
         if not nametag or not yaml_path:
+            yasmin.YASMIN_LOG_ERROR("Waypoint nametag or YAML path not provided in blackboard.")
             return ABORT
 
         with open(blackboard["yaml_path"], 'r') as file:
