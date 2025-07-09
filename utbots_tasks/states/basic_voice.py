@@ -596,6 +596,30 @@ class NLUProcess(CbState):
         blackboard["nlu_data"] = data
         return outcome
 
+
+def greet_and_name_cb(blackboard: Blackboard) -> str:
+    """
+    Retrieves the next waypoint from the list of random waypoints.
+
+    Updates the blackboard with the pose of the next waypoint.
+
+    Args:
+        blackboard (Blackboard): The blackboard instance holding current state data.
+
+    Returns:
+        str: Outcome indicating whether there is a next waypoint (HAS_NEXT) or if
+             navigation is complete (END).
+    """
+
+    try:
+        name=blackboard["nlu_data"]
+        blackboard["tts_text"]= f'Is the operators name {name}?Please say Yes, it is or No, it isn t.'
+        blackboard["name"]= name
+    except:
+        blackboard["tts_text"]= "I was not able to understand the operators name. Please say your name again."
+
+    return "to_tts"#pass to NLU
+
 # version: "3.1"
 
 # nlu:
