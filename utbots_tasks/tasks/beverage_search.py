@@ -1,188 +1,110 @@
 import rclpy
-from rclpy.qos import qos_profile_sensor_data
-from utbots_actions.action import YOLOBatchDetection
-from std_msgs.msg import String, Int32, Float32
-from nav2_msgs.action import NavigateToPose
-from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped
-from nav_msgs.msg import Odometry
-import math
 #Monkey path (TODO:change)
 import numpy as np
 if not hasattr(np, 'float'):
     np.float = float
-from tf_transformations import quaternion_from_euler
-from tf_transformations import quaternion_multiply
-from std_msgs.msg import Int32
 
-import yaml
 import yasmin
-from yasmin import CbState, Blackboard, StateMachine
-from yasmin_ros import ActionState, MonitorState
+from yasmin import CbState, Blackboard, StateMachine, State
 from yasmin_ros import set_ros_loggers
 from yasmin_ros.basic_outcomes import SUCCEED, ABORT, CANCEL
 from yasmin_viewer import YasminViewerPub
 
 from utbots_tasks.states.basic_face import RecognitionState, NewFaceState
+from utbots_tasks.states.basic_nav import GetCurrentPoseState, RotateInPlaceState, GoToWaypointState, WaitDoorOpenState, SetInitialPose
+from utbots_tasks.states.basic_voice import CoquiTTSState       
+from utbots_tasks.states.basic_vision import FindObjectState
 
-from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy, QoSDurabilityPolicy
-
-custom_qos = QoSProfile(
-    reliability=QoSReliabilityPolicy.RELIABLE,
-    durability=QoSDurabilityPolicy.TRANSIENT_LOCAL,
-    depth=10
-)
-
-# Fora da máquina, num node rclpy normal:
-def cb(msg):
-    print("Msg recebida:", msg)
-
-# from states_lib.states.basic_nav import RotateInPlaceState
-
-# class GetCurrentPoseState(MonitorState):
-#     def __init__(self) -> None:
-#         super().__init__(PoseWithCovarianceStamped, 
-#                          "/amcl_pose", 
-#                          [SUCCEED, ABORT], 
-#                          self.monitor_handler, 
-#                          qos=custom_qos, 
-#                          msg_queue=10, 
-#                          timeout=30)
-        
-#     def monitor_handler(self, blackboard: Blackboard, msg: PoseWithCovarianceStamped) -> str:
-#         blackboard["current_pose"] = msg
-#         return SUCCEED
-
-class GetCurrentPoseState(MonitorState):
+class PointToObjectState(State):
     def __init__(self) -> None:
-        super().__init__(Odometry, 
-                         "/hoverboard_base_controller/odom", 
-                         [SUCCEED, ABORT], 
-                         self.monitor_handler, 
-                         qos=custom_qos, 
-                         msg_queue=10, 
-                         timeout=30)
-        
-    def monitor_handler(self, blackboard: Blackboard, msg: PoseWithCovarianceStamped) -> str:
-        blackboard["current_pose"] = msg
-        return SUCCEED
+        super().__init__([SUCCEED, CANCEL])
 
-class GoToWaypointState(ActionState):
-    def __init__(self) -> None:
-        super().__init__(
-            NavigateToPose,  # action type
-            "/navigate_to_pose",  # action name
-            self.create_goal_handler,  # callback to create the goal
-            None,  # outcomes
-            None,  # callback to process the response
-        )
-
-    def create_goal_handler(self, blackboard: Blackboard) -> NavigateToPose.Goal:
-        nametag = blackboard["waypoint_nametag"]
-        yaml_path = blackboard["yaml_path"]
-        if not nametag or not yaml_path:
-            yasmin.YASMIN_LOG_ERROR("Waypoint nametag or YAML path not provided in blackboard.")
-            return ABORT
-
-        with open(blackboard["yaml_path"], 'r') as file:
-            data = yaml.safe_load(file)
-
-        for waypoint in data['waypoints']:
-            if waypoint == nametag:
-                pose_data = data['waypoints'][waypoint]
-                pose_stamped = PoseStamped()
-                # pose_stamped.header.stamp.sec = pose_data['header']['stamp']['secs']
-                # pose_stamped.header.stamp.nanosec = pose_data['header']['stamp']['nsecs']
-                pose_stamped.header.frame_id = 'map'
-
-                pose_stamped.pose.position.x = pose_data['position']['x']
-                pose_stamped.pose.position.y = pose_data['position']['y']
-                pose_stamped.pose.position.z = pose_data['position']['z']
-
-                pose_stamped.pose.orientation.x = pose_data['orientation']['x']
-                pose_stamped.pose.orientation.y = pose_data['orientation']['y']
-                pose_stamped.pose.orientation.z = pose_data['orientation']['z']
-                pose_stamped.pose.orientation.w = pose_data['orientation']['w']
-                print(pose_stamped)
-
-                goal = NavigateToPose.Goal()
-                goal.pose = pose_stamped
-                return goal
-        return ABORT
-
-class RotateInPlaceState(ActionState):
-    def __init__(self, node) -> None:
-        super().__init__(
-            NavigateToPose,  # action type
-            "/navigate_to_pose",  # action name
-            self.create_goal_handler,  # callback to create the goal
-            None,  # outcomes
-            None,  # callback to process the response
-        )
-        self.node = node
-        self.current_pose = PoseWithCovarianceStamped()
-        
-    def create_goal_handler(self, blackboard: Blackboard) -> NavigateToPose.Goal:
-        degrees = blackboard["rotate"]
-        radians = math.radians(degrees)
-
-        try:
-            pose = PoseStamped()
-            self.current_pose = blackboard["current_pose"]
-            pose.header.frame_id = "odom"
-            pose.header.stamp = self.node.get_clock().now().to_msg()
-
-            pose.pose.position.x = self.current_pose.pose.pose.position.x
-            pose.pose.position.y = self.current_pose.pose.pose.position.y
-            pose.pose.position.z = 0.0
-
-            # Apply rotation
-            current_q = self.current_pose.pose.pose.orientation
-            q_current = [current_q.x, current_q.y, current_q.z, current_q.w]
-            q_rotate = quaternion_from_euler(0, 0, radians)
-            q_new = quaternion_multiply(q_rotate, q_current)
-
-            pose.pose.orientation.x = q_new[0]
-            pose.pose.orientation.y = q_new[1]
-            pose.pose.orientation.z = q_new[2]
-            pose.pose.orientation.w = q_new[3]
-
-            goal = NavigateToPose.Goal()
-            goal.pose = pose
-            return goal
-
-        except Exception as e:
-            self.node.get_logger().error(f"Could not compute goal: {e}")
-            return ABORT
-
-class VoteDetectionsState(ActionState):
-    def __init__(self) -> None:
-        super().__init__(
-            YOLOBatchDetection,  # action type
-            "YOLO_batch_detection",  # action name
-            self.create_goal_handler,  # callback to create the goal
-            None,  # outcomes. Includes (SUCCEED, ABORT, CANCEL)
-            self.response_handler,  # callback to process the response
-            None,  # callback to process the feedback
-        )
-
-    def create_goal_handler(self, blackboard: Blackboard) -> YOLOBatchDetection.Goal:
-        goal = YOLOBatchDetection.Goal()
-        goal.target_category = String()
-        goal.target_category.data = blackboard["beverage"]
-        goal.batch_size = Int32()
-        goal.batch_size.data = blackboard["batch_size"]
-        goal.iou_threshold = Float32()
-        goal.iou_threshold.data = blackboard["iou_threshold"]
-        goal.support_threshold = Float32()
-        goal.support_threshold.data = blackboard["support_threshold"]
-        return goal
-
-    def response_handler(self, blackboard: Blackboard, response: YOLOBatchDetection.Result) -> str:
-        persons = response.detected_objs.bounding_boxes
-        if len(persons) > 0:
+    def execute(self, blackboard: Blackboard) -> str:
+        # yasmin.YASMIN_LOG_INFO("Executing state FOO")
+        detections = blackboard["detections"]
+        object = blackboard["object"]
+        if len(detections) > 0:
+            obj_bb = detections[0]
+            x_cent = (obj_bb.xmaxn - obj_bb.xminn)/2 + obj_bb.xminn
+            print(x_cent)
+            left_divider = 1/3
+            right_divider = 2/3
+            if x_cent > left_divider:
+                if x_cent > right_divider:
+                    response = f"Your {object} is to my right."
+                else:
+                    response = f"Your {object} is right in front of me."
+            else:
+                response = f"Your {object} is to my left."
+            yasmin.YASMIN_LOG_INFO(response)
+            blackboard["tts_text"] = response
             return SUCCEED
         else:
+            response = f"Your {object} is not here."
+            yasmin.YASMIN_LOG_INFO(response)
+            blackboard["tts_text"] = response
             return CANCEL
+
+class CalculateIOUsState(State):
+    def __init__(self) -> None:
+        super().__init__([SUCCEED, CANCEL])
+
+    def execute(self, blackboard: Blackboard) -> str:
+        # yasmin.YASMIN_LOG_INFO("Executing state FOO")
+        bboxes1 = blackboard["bboxes1"]
+        bboxes2 = blackboard["bboxes2"]
+        if len(bboxes1) > 0:
+            if len(bboxes2) == 0:
+                blackboard["object_bbox"] = [bboxes1[0]]
+            else:
+                min_iou = float('inf')
+                best_pair = (None, None)
+
+                for box1 in bboxes1:
+                    for box2 in bboxes2:
+                        iou = self.compute_iou(box1, box2)
+                        print(iou)
+                        if iou < min_iou:
+                            min_iou = iou
+                            best_pair = (box1, box2)
+                if min_iou > blackboard["iou_threshold"]:
+                    blackboard["tts_text"] = "Sorry, there is no seat available for you"
+                    return CANCEL
+                blackboard["object_bbox"] = [best_pair[0]]
+            return SUCCEED
+        else:
+            blackboard["tts_text"] = "Sorry, there is no seat available for you"
+            return CANCEL
+
+    def compute_iou(self, box1, box2):
+        # Unpack coordinates
+        x1_min, y1_min, x1_max, y1_max = box1.xmin, box1.ymin, box1.xmax, box1.ymax
+        x2_min, y2_min, x2_max, y2_max = box2.xmin, box2.ymin, box2.xmax, box2.ymax
+
+        # Intersection rectangle
+        inter_x_min = max(x1_min, x2_min)
+        inter_y_min = max(y1_min, y2_min)
+        inter_x_max = min(x1_max, x2_max)
+        inter_y_max = min(y1_max, y2_max)
+
+        print(inter_x_min, inter_x_max, inter_y_min, inter_y_max)
+
+        # Compute intersection area
+        inter_width = max(0, inter_x_max - inter_x_min)
+        inter_height = max(0, inter_y_max - inter_y_min)
+        inter_area = inter_width * inter_height
+
+        # Areas of each box
+        area1 = (x1_max - x1_min) * (y1_max - y1_min)
+        area2 = (x2_max - x2_min) * (y2_max - y2_min)
+
+        # Compute union area
+        union_area = area1 + area2 - inter_area
+
+        # Compute IoU
+        if union_area == 0:
+            return 0.0
+        return inter_area / union_area
 
 def main():
     yasmin.YASMIN_LOG_INFO("yasmin_action_client_demo")
@@ -193,25 +115,156 @@ def main():
     set_ros_loggers()
 
     # Create a finite state machine (FSM)
-    sm = StateMachine(outcomes=["outcome4", "outcome3"])
+    sm = StateMachine(outcomes=["success", "failed"])
+
+    sm.add_state(
+        "SET_INIT_POSE",
+        SetInitialPose(node, 0.0, 0.0, 0.0),
+        transitions={
+            SUCCEED: "WAIT_DOOR",
+            ABORT: "failed"
+        }
+    )
+
+    sm.add_state(
+        "WAIT_DOOR",
+        WaitDoorOpenState(),
+        transitions={
+            SUCCEED: "COME_IN",
+            CANCEL: "WAIT_DOOR",
+            ABORT: "failed"
+        }
+    )
+
+    sm.add_state(
+        "COME_IN",
+        CoquiTTSState(),
+        transitions={
+            SUCCEED: "GREET_AND_NAME",
+            CANCEL: "failed",
+        },
+        remappings = {"tts_text" : "come_in"}
+    )
+
+    sm.add_state(
+        "GREET_AND_NAME",
+        CoquiTTSState(),
+        transitions={
+            SUCCEED: "NEW_FACE",
+            CANCEL: "failed",
+        },
+        remappings = {"tts_text" : "greet_and_name"}
+    )
 
     sm.add_state(
         "NEW_FACE",
         NewFaceState(),
         transitions={
-            SUCCEED: "GO_TO_KITCHEN", # All mapping to SUCCEED for now
-            CANCEL: "outcome3",
-            ABORT: "outcome3",
+            SUCCEED: "ASK_DRINK", # All mapping to SUCCEED for now
+            CANCEL: "failed",
+            ABORT: "failed",
         },
     )
 
     sm.add_state(
-        "GO_TO_KITCHEN",
+        "ASK_DRINK",
+        CoquiTTSState(),
+        transitions={
+            SUCCEED: "ASK_FOLLOW",
+            CANCEL: "failed",
+        },
+        remappings = {"tts_text" : "ask_drink"}
+    )
+
+    sm.add_state(
+        "ASK_FOLLOW",
+        CoquiTTSState(),
+        transitions={
+            SUCCEED: "GO_TO_ROOM",
+            CANCEL: "failed",
+        },
+        remappings = {"tts_text" : "ask_follow"}
+    )
+
+# Find beverage in the beverage area
+
+    sm.add_state(
+        "GO_TO_ROOM",
+        GoToWaypointState(),
+        transitions={
+            SUCCEED: "GET_CURRENT_POSE2",
+            ABORT: "failed"
+        },
+        remappings={"waypoint_nametag" : "room"}
+    )
+
+    sm.add_state(
+        "GET_CURRENT_POSE2",
+        GetCurrentPoseState(),
+        transitions={
+            SUCCEED: "ROTATE2",
+            ABORT: "failed"
+        },
+    )
+    sm.add_state(
+        "ROTATE2",
+        RotateInPlaceState(node),
+        transitions={
+            SUCCEED: "FIND_BEVERAGE",
+            CANCEL: "failed",
+            ABORT: "failed",
+        },
+    )
+
+    sm.add_state(
+        "FIND_BEVERAGE",
+        FindObjectState(remappings={"object": "beverage"}),
+        transitions={
+            SUCCEED: "POINT_TO_BEVERAGE",
+            CANCEL: "POINT_TO_BEVERAGE",
+            ABORT: "failed"
+        }
+    )
+
+    sm.add_state(
+        "POINT_TO_BEVERAGE",
+        PointToObjectState(),
+        transitions={
+            SUCCEED: "DRINK_POSITION_TTS",
+            CANCEL: "DRINK_POSITION_TTS"
+        },
+        remappings = {"object" : "beverage"}
+    )
+
+    sm.add_state(
+        "DRINK_POSITION_TTS",
+        CoquiTTSState(),
+        transitions={
+            SUCCEED: "ASK_FOLLOW_LIVING_ROOM",
+            CANCEL: "failed",
+        }
+    )
+
+    sm.add_state(
+        "ASK_FOLLOW_LIVING_ROOM",
+        CoquiTTSState(),
+        transitions={
+            SUCCEED: "GO_TO_LIVING_ROOM",
+            CANCEL: "failed",
+        },
+        remappings = {"tts_text" : "ask_follow"}
+    )
+
+# Find seat in the living room
+
+    sm.add_state(
+        "GO_TO_LIVING_ROOM",
         GoToWaypointState(),
         transitions={
             SUCCEED: "GET_CURRENT_POSE",
-            ABORT: "outcome3"
+            ABORT: "failed"
         },
+        remappings={"waypoint_nametag" : "living_room"}
     )
 
     sm.add_state(
@@ -219,25 +272,65 @@ def main():
         GetCurrentPoseState(),
         transitions={
             SUCCEED: "ROTATE",
-            ABORT: "outcome3"
+            ABORT: "failed"
         },
     )
     sm.add_state(
         "ROTATE",
         RotateInPlaceState(node),
         transitions={
-            SUCCEED: "VOTE_DETECTIONS",
-            CANCEL: "outcome4",
-            ABORT: "outcome4",
+            SUCCEED: "FIND_SEAT",
+            CANCEL: "failed",
+            ABORT: "failed",
         },
     )
+
     sm.add_state(
-        "VOTE_DETECTIONS",
-        VoteDetectionsState(),
+        "FIND_PEOPLE",
+        FindObjectState(remappings={"object": "person", "detections": "bboxes2"}),
         transitions={
-            SUCCEED: "RECOGNITION",
-            CANCEL: "GET_CURRENT_POSE",
-            ABORT: "outcome4",
+            SUCCEED: "FIND_SEAT",
+            CANCEL: "FIND_SEAT",
+            ABORT: "failed",
+        }
+    )
+
+    sm.add_state(
+        "FIND_SEAT",
+        FindObjectState(remappings={"object": "seat", "detections": "bboxes1"}),
+        transitions={
+            SUCCEED: "FIND_BEST_SEAT",
+            CANCEL: "FIND_BEST_SEAT",
+            ABORT: "failed"
+        }
+    )
+
+    sm.add_state(
+        "FIND_BEST_SEAT",
+        CalculateIOUsState(),
+        transitions={
+            SUCCEED: "POINT_TO_SEAT",
+            CANCEL: "TTS_STATE",
+        },
+        remappings = {"object_bbox" : "object_bbox"},
+    )
+
+    sm.add_state(
+        "POINT_TO_SEAT",
+        PointToObjectState(),
+        transitions={
+            SUCCEED: "TTS_STATE",
+            CANCEL: "failed",
+        },
+        remappings = {"object" : "seat", "detections" : "object_bbox"}
+    )
+
+    sm.add_state(
+        "TTS_STATE",
+        CoquiTTSState(),
+        transitions={
+            SUCCEED: "success",
+            CANCEL: "failed",
         },
     )
 
@@ -245,9 +338,9 @@ def main():
         "RECOGNITION",
         RecognitionState(),
         transitions={
-            SUCCEED: "outcome4", # All mapping to SUCCEED for now
-            CANCEL: "outcome3",
-            ABORT: "outcome3",
+            SUCCEED: "success", # All mapping to SUCCEED for now
+            CANCEL: "failed",
+            ABORT: "failed",
         },
     )
 
@@ -259,14 +352,25 @@ def main():
     blackboard["iou_threshold"] = 0.5
     blackboard["support_threshold"] = 0.4
     blackboard["batch_size"] = 50
-    blackboard["beverage"] = "person"
+    blackboard["beverage"] = "bottle"
+    blackboard["seat"] = "chair"
+    blackboard["person"] = "person"
     blackboard["rotate"] = 90
     blackboard['yaml_path'] = '/home/laser/ros2_ws/src/utbots_navigation/utbots_nav/map/pitaco_waypoints.yaml'
-    blackboard['waypoint_nametag'] = 'living_room'
+    blackboard['waypoint_room'] = 'room'
 
-    # sub = node.create_subscription(PoseWithCovarianceStamped, '/amcl_pose', cb, qos_profile_sensor_data)
-    # print("created sub")
-    # Execute the FSM
+    blackboard["bedroom"] = "bedroom"
+    blackboard["kitchen"] = "kitchen"
+    blackboard["living_room"] = "living_room"
+    blackboard["room"] = "room"
+
+    # TTS blackboard variables for this task
+    blackboard["come_in"] = "Hello, please come in."
+    blackboard["greet_and_name"] = "I am Hestia. What is your name."
+    blackboard["ask_drink"] = "What drink would you like."
+    blackboard["ask_follow"] = "Please follow me."
+    blackboard["tts_text"] = "come_in."
+
     try:
         outcome = sm(blackboard)
         yasmin.YASMIN_LOG_INFO(outcome)
@@ -274,7 +378,7 @@ def main():
         if sm.is_running():
             sm.cancel_state()  # Cancel the state if interrupted
 
-    # Shutdown ROS 2
+    # Shutdown ROS
     if rclpy.ok():
         rclpy.shutdown()
 

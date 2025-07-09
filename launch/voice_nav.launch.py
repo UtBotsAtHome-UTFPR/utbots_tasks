@@ -75,7 +75,7 @@ def generate_launch_description():
         DeclareLaunchArgument('whisper_stt_timeout',default_value='15.0'),
         DeclareLaunchArgument('whisper_def_model',default_value='openai/whisper-large-v3-turbo'),
 
-        OpaqueFunction(function=launch_setup),
+        #OpaqueFunction(function=launch_setup),
         Node(
             package='utbots_tasks',
             executable='voice_nav_smach',
