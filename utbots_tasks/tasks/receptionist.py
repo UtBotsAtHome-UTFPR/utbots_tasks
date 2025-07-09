@@ -51,8 +51,15 @@ class CalculateIOUsState(State):
 
     def execute(self, blackboard: Blackboard) -> str:
         # yasmin.YASMIN_LOG_INFO("Executing state FOO")
-        bboxes1 = blackboard["bboxes1"]
-        bboxes2 = blackboard["bboxes2"]
+        try:
+            bboxes1 = blackboard["bboxes1"]
+        except:
+            bboxes1 = []
+        try:
+            bboxes2 = blackboard["bboxes2"]
+        except:
+            bboxes2 = []
+            
         if len(bboxes1) > 0:
             if len(bboxes2) == 0:
                 blackboard["object_bbox"] = [bboxes1[0]]

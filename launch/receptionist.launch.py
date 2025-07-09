@@ -10,14 +10,10 @@ import os
 def generate_launch_description():
     # Paths to other launch files
     nav_launch_path = os.path.join(
-        '/home/laser/ros2_ws/src/utbots_navigation/utbots_nav/launch',
-        'nav.launch.py'
-    )
+        get_package_share_directory('utbots_nav'), 'launch')
 
     recognition_launch_path = os.path.join(
-        '/home/laser/ros2_ws/src/utbots_vision/utbots_face_recognition/launch',
-        'recognition.launch.py'
-    )
+        get_package_share_directory('utbots_face_recognition'), 'launch')
 
     stt_launch_dir = os.path.join(
         get_package_share_directory('vad_ros'), 'launch')
