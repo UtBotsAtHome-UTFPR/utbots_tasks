@@ -18,7 +18,7 @@ from utbots_tasks.states.basic_vision import FindObjectState
 from utbots_tasks.states.basic_voice import CoquiTTSState       
 from utbots_tasks.states.basic_voice import WhisperSTTState,whisper_process_cb
 from utbots_tasks.states.basic_voice import NLUInference,get_process_nlu,NLUProcess
-from utbots_tasks.states.basic_voice import wait_cb,greet_and_name_cb
+from utbots_tasks.states.basic_voice import wait_cb#,greet_and_name_cb, new_face_error_cb
 
 PROCESS_NLU=get_process_nlu()
 
@@ -208,22 +208,22 @@ def main():
             PROCESS_NLU[6]: "GREET_AND_NAME",
             PROCESS_NLU[7]: "GREET_AND_NAME",
             PROCESS_NLU[8]: "GREET_AND_NAME",
-            PROCESS_NLU[9]: "GREET_AND_NAME_VER",
-            PROCESS_NLU[10]: "GREET_AND_NAME_VER",
+            PROCESS_NLU[9]: "GREET_AND_NAME_VER_TALK",
+            PROCESS_NLU[10]: "GREET_AND_NAME_VER_TALK",
             PROCESS_NLU[11]: "GREET_AND_NAME",
             PROCESS_NLU[12]: "GREET_AND_NAME",
         },
     )
 
 
-    sm.add_state(
-        "GREET_AND_NAME_VER",
-        CbState(["to_tts"],greet_and_name_cb),
-        transitions={
-            "to_tts": "GREET_AND_NAME_VER_TALK",
-        },
-        # remappings = {"tts_text" : "greet_and_name"}
-    )
+    # sm.add_state(
+    #     "GREET_AND_NAME_VER",
+    #     CbState(["to_tts"],greet_and_name_cb),
+    #     transitions={
+    #         "to_tts": "GREET_AND_NAME_VER_TALK",
+    #     },
+    #     # remappings = {"tts_text" : "greet_and_name"}
+    # )
 
     sm.add_state(
         "GREET_AND_NAME_VER_TALK",
@@ -288,14 +288,16 @@ def main():
         },
     )
 
-    # sm.add_state(
-    #     "GREET_AND_NAME_VER",
-    #     CbState(["to_tts"],greet_and_name_cb),
-    #     transitions={
-    #         "to_tts": "GREET_AND_NAME_VER_TALK",
-    #     },
-    #     # remappings = {"tts_text" : "greet_and_name"}
-    # )
+    sm.add_state(
+        "NEW_FACE_ERROR",
+        CoquiTTSState(),
+        transitions={
+            SUCCEED: "CALLING_WHISPER_VER",
+            CANCEL: "failed",
+        },
+        # remappings = {"tts_text" : "greet_and_name"}
+    )
+
 
 
     sm.add_state(
