@@ -548,10 +548,10 @@ class NLUProcess(CbState):
                     (bla bla bla)."
                 outcome="introduce_robot"
             case "affirm":
-                answer="I agree"
+                answer="The operator affirmed my request."
                 outcome="affirm"
             case "deny":
-                answer="I disagree"
+                answer="The operator denied my request."
                 outcome="deny"
             case "mood_great":
                 answer="Amazing!"
@@ -583,10 +583,10 @@ class NLUProcess(CbState):
                 answer=f"I was asked to describe the ambient f{ambient}!"
                 outcome="describe_ambient"
             case "like_drink":
-                answer=f"The operator likes f{data}!"
+                answer=f"The operator likes f{data}, does he?Please deny or affirm the sentence."
                 outcome="describe_ambient"
             case "pick_object":
-                answer=f"I was asked to pick f{data}!"
+                answer=f"I was asked to pick f{data}!Please deny or confirm the request."
                 outcome="describe_ambient"
             case _:  # Default case
                 answer="Hello, my name is hestia!I wasn't able to understand what you said to me!"

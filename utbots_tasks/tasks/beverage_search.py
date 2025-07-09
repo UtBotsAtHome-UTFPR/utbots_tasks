@@ -273,8 +273,9 @@ def main():
         NLUProcess(True),  # Set verbose to True for detailed logging     
         transitions={
             PROCESS_NLU[0]: "GREET_AND_NAME",
-            PROCESS_NLU[1]: "GREET_AND_NAME",
+            # PROCESS_NLU[1]: "GREET_AND_NAME",
             PROCESS_NLU[2]: "NEW_FACE",
+            PROCESS_NLU[2]: "ASK_DRINK",
             PROCESS_NLU[3]: "NEW_FACE_ERROR",
             PROCESS_NLU[4]: "GREET_AND_NAME",
             PROCESS_NLU[5]: "GREET_AND_NAME",
@@ -313,7 +314,7 @@ def main():
         "ASK_DRINK",
         CoquiTTSState(),
         transitions={
-            SUCCEED: "ASK_FOLLOW",
+            SUCCEED: "CALLING_WHISPER2",
             CANCEL: "failed",
         },
         remappings = {"tts_text" : "ask_drink"}
