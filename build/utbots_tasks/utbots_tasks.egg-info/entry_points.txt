@@ -1,6 +1,0 @@
-[console_scripts]
-beverage_search = utbots_tasks.tasks.beverage_search:main
-receptionist = utbots_tasks.tasks.receptionist:main
-recognition = utbots_tasks.states.basic_face:main
-voice_nav_smach = utbots_tasks.tasks.voice_nav:main
-
