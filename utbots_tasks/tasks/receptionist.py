@@ -3,7 +3,6 @@ import rclpy
 import numpy as np
 if not hasattr(np, 'float'):
     np.float = float
-
 import yasmin
 from yasmin import CbState, Blackboard, StateMachine, State
 from yasmin_ros import set_ros_loggers
@@ -11,9 +10,14 @@ from yasmin_ros.basic_outcomes import SUCCEED, ABORT, CANCEL
 from yasmin_viewer import YasminViewerPub
 
 from utbots_tasks.states.basic_face import RecognitionState, NewFaceState
+
 from utbots_tasks.states.basic_nav import GetCurrentPoseState, RotateInPlaceState, GoToWaypointState, WaitDoorOpenState, SetInitialPose
-from utbots_tasks.states.basic_voice import CoquiTTSState       
+
 from utbots_tasks.states.basic_vision import FindObjectState
+
+from utbots_tasks.states.basic_voice import CoquiTTSState, WhisperSTTState, whisper_process_cb, NLUInference, get_process_nlu, NLUProcess, generate_ask_name_sm, generate_ask_drink_sm, wait_cb#,greet_and_name_cb, new_face_error_cb
+
+PROCESS_NLU=get_process_nlu()
 
 class PointToObjectState(State):
     def __init__(self) -> None:
@@ -59,7 +63,6 @@ class CalculateIOUsState(State):
             bboxes2 = blackboard["bboxes2"]
         except:
             bboxes2 = []
-            
         if len(bboxes1) > 0:
             if len(bboxes2) == 0:
                 blackboard["object_bbox"] = [bboxes1[0]]
@@ -121,47 +124,58 @@ def main():
      # Set up ROS 2 logs
     set_ros_loggers()
 
-    # Create a finite state machine (FSM)
+    # Create a finite state machine (FSM)zzz
     sm = StateMachine(outcomes=["success", "failed"])
 
     sm.add_state(
         "SET_INIT_POSE",
         SetInitialPose(node, 0.0, 0.0, 0.0),
         transitions={
-            SUCCEED: "WAIT_DOOR",
+            SUCCEED: "COME_IN",
             ABORT: "failed"
         }
     )
 
-    sm.add_state(
-        "WAIT_DOOR",
-        WaitDoorOpenState(),
-        transitions={
-            SUCCEED: "COME_IN",
-            CANCEL: "WAIT_DOOR",
-            ABORT: "failed"
-        }
-    )
+    # sm.add_state(
+    #     "WAIT_DOOR",
+    #     WaitDoorOpenState(),
+    #     transitions={
+    #         SUCCEED: "COME_IN",
+    #         CANCEL: "WAIT_DOOR",
+    #         ABORT: "failed"
+    #     }
+    # )
 
     sm.add_state(
         "COME_IN",
         CoquiTTSState(),
         transitions={
-            SUCCEED: "GREET_AND_NAME",
+            SUCCEED: "GREET",
             CANCEL: "failed",
         },
-        remappings = {"tts_text" : "come_in"}
+        remappings = {"tts_text" : "come_in"}   
     )
 
     sm.add_state(
-        "GREET_AND_NAME",
+        "GREET",
         CoquiTTSState(),
+        transitions={
+            SUCCEED: "ASK_NAME",
+            CANCEL: "failed",
+        },
+        remappings = {"tts_text" : "greet"}   
+    )
+
+    sm.add_state(
+        "ASK_NAME",
+        generate_ask_name_sm("ask_name"),
         transitions={
             SUCCEED: "NEW_FACE",
             CANCEL: "failed",
         },
-        remappings = {"tts_text" : "greet_and_name"}
+        remappings = {"tts_text" : "ask_name"}
     )
+
 
     sm.add_state(
         "NEW_FACE",
@@ -171,11 +185,12 @@ def main():
             CANCEL: "failed",
             ABORT: "failed",
         },
+        remappings={"operator" : "nlu_data"}
     )
 
     sm.add_state(
         "ASK_DRINK",
-        CoquiTTSState(),
+        generate_ask_drink_sm("ask_drink"),
         transitions={
             SUCCEED: "ASK_FOLLOW",
             CANCEL: "failed",
@@ -199,22 +214,22 @@ def main():
         "GO_TO_ROOM",
         GoToWaypointState(),
         transitions={
-            SUCCEED: "GET_CURRENT_POSE2",
+            SUCCEED: "GET_CURRENT_POSE",
             ABORT: "failed"
         },
         remappings={"waypoint_nametag" : "room"}
     )
 
     sm.add_state(
-        "GET_CURRENT_POSE2",
+        "GET_CURRENT_POSE",
         GetCurrentPoseState(),
         transitions={
-            SUCCEED: "ROTATE2",
+            SUCCEED: "ROTATE",
             ABORT: "failed"
         },
     )
     sm.add_state(
-        "ROTATE2",
+        "ROTATE",
         RotateInPlaceState(node),
         transitions={
             SUCCEED: "FIND_BEVERAGE",
@@ -268,22 +283,22 @@ def main():
         "GO_TO_LIVING_ROOM",
         GoToWaypointState(),
         transitions={
-            SUCCEED: "GET_CURRENT_POSE",
+            SUCCEED: "GET_CURRENT_POSE2",
             ABORT: "failed"
         },
         remappings={"waypoint_nametag" : "living_room"}
     )
 
     sm.add_state(
-        "GET_CURRENT_POSE",
+        "GET_CURRENT_POSE2",
         GetCurrentPoseState(),
         transitions={
-            SUCCEED: "ROTATE",
+            SUCCEED: "ROTATE2",
             ABORT: "failed"
         },
     )
     sm.add_state(
-        "ROTATE",
+        "ROTATE2",
         RotateInPlaceState(node),
         transitions={
             SUCCEED: "FIND_SEAT",
@@ -307,7 +322,7 @@ def main():
         FindObjectState(remappings={"object": "seat", "detections": "bboxes1"}),
         transitions={
             SUCCEED: "FIND_BEST_SEAT",
-            CANCEL: "FIND_BEST_SEAT",
+            CANCEL: "GET_CURRENT_POSE2",
             ABORT: "failed"
         }
     )
@@ -362,7 +377,7 @@ def main():
     blackboard["beverage"] = "bottle"
     blackboard["seat"] = "chair"
     blackboard["person"] = "person"
-    blackboard["rotate"] = 90
+    blackboard["rotate"] = -45
     blackboard['yaml_path'] = '/home/laser/ros2_ws/src/utbots_navigation/utbots_nav/map/pitaco_waypoints.yaml'
     blackboard['waypoint_room'] = 'room'
 
@@ -373,11 +388,12 @@ def main():
 
     # TTS blackboard variables for this task
     blackboard["come_in"] = "Hello, please come in."
-    blackboard["greet_and_name"] = "I am Hestia. What is your name."
+    blackboard["greet"] = "I am Hestia." 
+    blackboard["ask_name"] = "What is your name."
     blackboard["ask_drink"] = "What drink would you like."
     blackboard["ask_follow"] = "Please follow me."
     blackboard["tts_text"] = "come_in."
-
+    blackboard["name"]= None
     try:
         outcome = sm(blackboard)
         yasmin.YASMIN_LOG_INFO(outcome)
