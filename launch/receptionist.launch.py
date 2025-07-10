@@ -22,20 +22,7 @@ def generate_launch_description():
     verbose = LaunchConfiguration('verbose',default="false")
 
     return LaunchDescription([
-        # Include utbots_nav launch file with arguments
-        # IncludeLaunchDescription(
-        #     PythonLaunchDescriptionSource(nav_launch_path),
-        #     launch_arguments={
-        #         'use_sim_time': 'false',
-        #         'use_imu': 'false',
-        #         'map': '/home/laser/ros2_ws/src/utbots_navigation/utbots_nav/map/pitaco.yaml'
-        #     }.items()
-        # ),
-
-        # Include face recognition launch file
-        # IncludeLaunchDescription(
-        #     PythonLaunchDescriptionSource(recognition_launch_path)
-        # ),
+ 
 
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(os.path.join(stt_launch_dir, 'stt_launch.py')),

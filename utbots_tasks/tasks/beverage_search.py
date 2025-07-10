@@ -196,7 +196,7 @@ def main():
         "ASK_FOLLOW",
         CoquiTTSState(),
         transitions={
-            SUCCEED: "FIND_BEVERAGE",
+            SUCCEED: "GO_TO_ROOM",
             CANCEL: "failed",
         },
         remappings = {"tts_text" : "ask_follow"}
@@ -204,33 +204,33 @@ def main():
 
 # Find beverage in the beverage area
 
-    # sm.add_state(
-    #     "GO_TO_ROOM",
-    #     GoToWaypointState(),
-    #     transitions={
-    #         SUCCEED: "GET_CURRENT_POSE2",
-    #         ABORT: "failed"
-    #     },
-    #     remappings={"waypoint_nametag" : "room"}
-    # )
+    sm.add_state(
+        "GO_TO_ROOM",
+        GoToWaypointState(),
+        transitions={
+            SUCCEED: "GET_CURRENT_POSE2",
+            ABORT: "failed"
+        },
+        remappings={"waypoint_nametag" : "room"}
+    )
 
-    # sm.add_state(
-    #     "GET_CURRENT_POSE2",
-    #     GetCurrentPoseState(),
-    #     transitions={
-    #         SUCCEED: "ROTATE2",
-    #         ABORT: "failed"
-    #     },
-    # )
-    # sm.add_state(
-    #     "ROTATE2",
-    #     RotateInPlaceState(node),
-    #     transitions={
-    #         SUCCEED: "FIND_BEVERAGE",
-    #         CANCEL: "failed",
-    #         ABORT: "failed",
-    #     },
-    # )
+    sm.add_state(
+        "GET_CURRENT_POSE2",
+        GetCurrentPoseState(),
+        transitions={
+            SUCCEED: "ROTATE2",
+            ABORT: "failed"
+        },
+    )
+    sm.add_state(
+        "ROTATE2",
+        RotateInPlaceState(node),
+        transitions={
+            SUCCEED: "FIND_BEVERAGE",
+            CANCEL: "failed",
+            ABORT: "failed",
+        },
+    )
 
     sm.add_state(
         "FIND_BEVERAGE",
@@ -265,7 +265,7 @@ def main():
         "ASK_FOLLOW_LIVING_ROOM",
         CoquiTTSState(),
         transitions={
-            SUCCEED: "FIND_PEOPLE",
+            SUCCEED: "GO_TO_LIVING_ROOM",
             CANCEL: "failed",
         },
         remappings = {"tts_text" : "ask_follow"}
@@ -273,33 +273,33 @@ def main():
 
 # Find seat in the living room
 
-    # sm.add_state(
-    #     "GO_TO_LIVING_ROOM",
-    #     GoToWaypointState(),
-    #     transitions={
-    #         SUCCEED: "GET_CURRENT_POSE",
-    #         ABORT: "failed"
-    #     },
-    #     remappings={"waypoint_nametag" : "living_room"}
-    # )
+    sm.add_state(
+        "GO_TO_LIVING_ROOM",
+        GoToWaypointState(),
+        transitions={
+            SUCCEED: "GET_CURRENT_POSE",
+            ABORT: "failed"
+        },
+        remappings={"waypoint_nametag" : "living_room"}
+    )
 
-    # sm.add_state(
-    #     "GET_CURRENT_POSE",
-    #     GetCurrentPoseState(),
-    #     transitions={
-    #         SUCCEED: "ROTATE",
-    #         ABORT: "failed"
-    #     },
-    # )
-    # sm.add_state(
-    #     "ROTATE",
-    #     RotateInPlaceState(node),
-    #     transitions={
-    #         SUCCEED: "FIND_SEAT",
-    #         CANCEL: "failed",
-    #         ABORT: "failed",
-    #     },
-    # )
+    sm.add_state(
+        "GET_CURRENT_POSE",
+        GetCurrentPoseState(),
+        transitions={
+            SUCCEED: "ROTATE",
+            ABORT: "failed"
+        },
+    )
+    sm.add_state(
+        "ROTATE",
+        RotateInPlaceState(node),
+        transitions={
+            SUCCEED: "FIND_SEAT",
+            CANCEL: "failed",
+            ABORT: "failed",
+        },
+    )
 
     sm.add_state(
         "FIND_PEOPLE",
