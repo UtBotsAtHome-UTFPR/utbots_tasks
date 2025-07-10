@@ -580,13 +580,13 @@ class NLUProcess(CbState):
                 blackboard["name"]= name           
                 outcome="identify_operator"
             case "describe_ambient":
-                answer=f"I was asked to describe the ambient f{ambient}!"
+                answer=f"I was asked to describe the ambient {ambient}!"
                 outcome="describe_ambient"
             case "like_drink":
-                answer=f"The operator likes f{data}, does he?Please deny or affirm the sentence."
+                answer=f"The operator likes {data}, does he?Please deny or affirm the sentence."
                 outcome="describe_ambient"
             case "pick_object":
-                answer=f"I was asked to pick f{data}!Please deny or confirm the request."
+                answer=f"I was asked to pick {data}!Please deny or confirm the request."
                 outcome="describe_ambient"
             case _:  # Default case
                 answer="Hello, my name is hestia!I wasn't able to understand what you said to me!"

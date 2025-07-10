@@ -33,9 +33,9 @@ def generate_launch_description():
         # ),
 
         # Include face recognition launch file
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(recognition_launch_path)
-        ),
+        # IncludeLaunchDescription(
+        #     PythonLaunchDescriptionSource(recognition_launch_path)
+        # ),
 
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(os.path.join(stt_launch_dir, 'stt_launch.py')),
@@ -46,34 +46,34 @@ def generate_launch_description():
         ),
 
         # Launch yolov8_ros yolo_node
-        Node(
-            package='yolov8_ros',
-            executable='yolo_node',
-            name='yolo_node',
-            output='screen'
-        ),
+        # Node(
+        #     package='yolov8_ros',
+        #     executable='yolo_node',
+        #     name='yolo_node',
+        #     output='screen'
+        # ),
 
         # Launch usb_cam_node_exe with parameter
-        Node(
-            package='usb_cam',
-            executable='usb_cam_node_exe',
-            name='usb_cam',
-            output='screen',
-            parameters=[{
-                'video_device': '/dev/video0'
-            }]
-        ),
         # Node(
-        #     package='utbots_nlu',
-        #     executable='rasa_nlu_interpreter',
-        #     name='rasa_nlu_interpreter',
-        #     # output='screen',
-        #     emulate_tty=True,
-        #     parameters=[
-        #         {
-        #           }
-        #     ]
+        #     package='usb_cam',
+        #     executable='usb_cam_node_exe',
+        #     name='usb_cam',
+        #     output='screen',
+        #     parameters=[{
+        #         'video_device': '/dev/video0'
+        #     }]
         # ),
+        Node(
+            package='utbots_nlu',
+            executable='rasa_nlu_interpreter',
+            name='rasa_nlu_interpreter',
+            # output='screen',
+            emulate_tty=True,
+            parameters=[
+                {
+                  }
+            ]
+        ),
         Node(
             package='ros_tts',
             executable='tts_node',
