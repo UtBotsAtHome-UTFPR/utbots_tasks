@@ -694,3 +694,255 @@ class NLUProcess(CbState):
 
 # - intent: describe_ambient
 #.
+
+def generate_ask_name_sm(tts_text):
+    ask_name_sm = StateMachine(outcomes=[SUCCEED, CANCEL, ABORT])
+    ask_name_sm.add_state(
+        "ASK_SOMETHING",
+        CoquiTTSState(),
+        transitions={
+            SUCCEED: "CALLING_WHISPER",
+            CANCEL: ABORT,
+        },
+        remappings={"tts_text" : tts_text}
+    )
+
+    ask_name_sm.add_state(
+        "CALLING_WHISPER",
+        WhisperSTTState(),
+        transitions={
+            SUCCEED: "WHISPER_PROCESS",
+            CANCEL: ABORT,
+            ABORT: ABORT,
+        },
+    )
+
+    ask_name_sm.add_state(
+        "WHISPER_PROCESS",
+        CbState(["process_whisper1","process_whisper2","process_whisper3"],whisper_process_cb),
+        transitions={
+            "process_whisper1": "CALLING_WHISPER",
+            "process_whisper2": "NLU_INFERENCE",
+            # "process_whisper3": "outcome4",
+
+        },
+    )
+
+    ask_name_sm.add_state(
+        "NLU_INFERENCE",
+        NLUInference(),
+        transitions={
+            SUCCEED: "NLU_PROCESS",
+            CANCEL: ABORT,
+            ABORT: ABORT,
+        },
+        remappings={"nlu_input_text": "whispered"},
+    )
+
+    ask_name_sm.add_state(
+        "NLU_PROCESS",
+        NLUProcess(True),  # Set verbose to True for detailed logging     
+        transitions={
+            PROCESS_NLU[0]: "ASK_SOMETHING",
+            PROCESS_NLU[1]: "ASK_SOMETHING",
+            PROCESS_NLU[2]: "ASK_SOMETHING",
+            PROCESS_NLU[3]: "ASK_SOMETHING",
+            PROCESS_NLU[4]: "ASK_SOMETHING",
+            PROCESS_NLU[5]: "ASK_SOMETHING",
+            PROCESS_NLU[6]: "ASK_SOMETHING",
+            PROCESS_NLU[7]: "ASK_SOMETHING",
+            PROCESS_NLU[8]: "ASK_SOMETHING",
+            PROCESS_NLU[9]: "VERIFY",
+            PROCESS_NLU[10]: "VERIFY",
+            PROCESS_NLU[11]: "ASK_SOMETHING",
+            PROCESS_NLU[12]: "ASK_SOMETHING",
+        },
+    )
+
+    ask_name_sm.add_state(
+        "VERIFY",
+        CoquiTTSState(),
+        transitions={
+            SUCCEED: "CALLING_WHISPER_VER",
+            CANCEL: ABORT,
+        },
+    )
+
+    ask_name_sm.add_state(
+        "CALLING_WHISPER_VER",
+        WhisperSTTState(),
+        transitions={
+            SUCCEED: "WHISPER_PROCESS_VER",
+            CANCEL: ABORT,
+            ABORT: ABORT,
+        },
+    )
+
+    ask_name_sm.add_state(
+        "WHISPER_PROCESS_VER",
+        CbState(["process_whisper1","process_whisper2","process_whisper3"],whisper_process_cb),
+        transitions={
+            "process_whisper1": "CALLING_WHISPER_VER",
+            "process_whisper2": "NLU_INFERENCE_VER",
+            # "process_whisper3": "outcome4",
+
+        },
+    )
+
+    ask_name_sm.add_state(
+        "NLU_INFERENCE_VER",
+        NLUInference(),
+        transitions={
+            SUCCEED: "NLU_PROCESS_VER",
+            CANCEL: ABORT,
+            ABORT: ABORT,
+        },
+        remappings={"nlu_input_text": "whispered"},
+    )
+
+    ask_name_sm.add_state(
+        "NLU_PROCESS_VER",
+        NLUProcess(True),  # Set verbose to True for detailed logging     
+        transitions={
+            PROCESS_NLU[0]: "ASK_SOMETHING",
+            PROCESS_NLU[1]: "ASK_SOMETHING",
+            PROCESS_NLU[2]: SUCCEED,
+            PROCESS_NLU[3]: "ASK_SOMETHING",
+            PROCESS_NLU[4]: "ASK_SOMETHING",
+            PROCESS_NLU[5]: "ASK_SOMETHING",
+            PROCESS_NLU[6]: "ASK_SOMETHING",
+            PROCESS_NLU[7]: "ASK_SOMETHING",
+            PROCESS_NLU[8]: "ASK_SOMETHING",
+            PROCESS_NLU[9]: "ASK_SOMETHING",
+            PROCESS_NLU[10]: "ASK_SOMETHING",
+            PROCESS_NLU[11]: "ASK_SOMETHING",
+            PROCESS_NLU[12]: "ASK_SOMETHING",
+        },
+    )
+    return ask_name_sm
+
+def generate_ask_drink_sm(tts_text):
+    ask_drink_sm = StateMachine(outcomes=[SUCCEED, CANCEL, ABORT])
+    ask_drink_sm.add_state(
+        "ASK_SOMETHING",
+        CoquiTTSState(),
+        transitions={
+            SUCCEED: "CALLING_WHISPER",
+            CANCEL: ABORT,
+        },
+        remappings={"tts_text" : tts_text}
+    )
+
+    ask_drink_sm.add_state(
+        "CALLING_WHISPER",
+        WhisperSTTState(),
+        transitions={
+            SUCCEED: "WHISPER_PROCESS",
+            CANCEL: ABORT,
+            ABORT: ABORT,
+        },
+    )
+
+    ask_drink_sm.add_state(
+        "WHISPER_PROCESS",
+        CbState(["process_whisper1","process_whisper2","process_whisper3"],whisper_process_cb),
+        transitions={
+            "process_whisper1": "CALLING_WHISPER",
+            "process_whisper2": "NLU_INFERENCE",
+            # "process_whisper3": "outcome4",
+
+        },
+    )
+
+    ask_drink_sm.add_state(
+        "NLU_INFERENCE",
+        NLUInference(),
+        transitions={
+            SUCCEED: "NLU_PROCESS",
+            CANCEL: ABORT,
+            ABORT: ABORT,
+        },
+        remappings={"nlu_input_text": "whispered"},
+    )
+
+    ask_drink_sm.add_state(
+        "NLU_PROCESS",
+        NLUProcess(True),  # Set verbose to True for detailed logging     
+        transitions={
+            PROCESS_NLU[0]: "ASK_SOMETHING",
+            PROCESS_NLU[1]: "ASK_SOMETHING",
+            PROCESS_NLU[2]: "ASK_SOMETHING",
+            PROCESS_NLU[3]: "ASK_SOMETHING",
+            PROCESS_NLU[4]: "ASK_SOMETHING",
+            PROCESS_NLU[5]: "ASK_SOMETHING",
+            PROCESS_NLU[6]: "ASK_SOMETHING",
+            PROCESS_NLU[7]: "ASK_SOMETHING",
+            PROCESS_NLU[8]: "ASK_SOMETHING",
+            PROCESS_NLU[9]: "ASK_SOMETHING",
+            PROCESS_NLU[10]: "ASK_SOMETHING",
+            PROCESS_NLU[11]: "VERIFY",
+            PROCESS_NLU[12]: "ASK_SOMETHING",
+        },
+    )
+
+    ask_drink_sm.add_state(
+        "VERIFY",
+        CoquiTTSState(),
+        transitions={
+            SUCCEED: "CALLING_WHISPER_VER",
+            CANCEL: ABORT,
+        },
+    )
+
+    ask_drink_sm.add_state(
+        "CALLING_WHISPER_VER",
+        WhisperSTTState(),
+        transitions={
+            SUCCEED: "WHISPER_PROCESS_VER",
+            CANCEL: ABORT,
+            ABORT: ABORT,
+        },
+    )
+
+    ask_drink_sm.add_state(
+        "WHISPER_PROCESS_VER",
+        CbState(["process_whisper1","process_whisper2","process_whisper3"],whisper_process_cb),
+        transitions={
+            "process_whisper1": "CALLING_WHISPER_VER",
+            "process_whisper2": "NLU_INFERENCE_VER",
+            # "process_whisper3": "outcome4",
+
+        },
+    )
+
+    ask_drink_sm.add_state(
+        "NLU_INFERENCE_VER",
+        NLUInference(),
+        transitions={
+            SUCCEED: "NLU_PROCESS_VER",
+            CANCEL: ABORT,
+            ABORT: ABORT,
+        },
+        remappings={"nlu_input_text": "whispered"},
+    )
+
+    ask_drink_sm.add_state(
+        "NLU_PROCESS_VER",
+        NLUProcess(True),  # Set verbose to True for detailed logging     
+        transitions={
+            PROCESS_NLU[0]: "ASK_SOMETHING",
+            PROCESS_NLU[1]: "ASK_SOMETHING",
+            PROCESS_NLU[2]: SUCCEED,
+            PROCESS_NLU[3]: "ASK_SOMETHING",
+            PROCESS_NLU[4]: "ASK_SOMETHING",
+            PROCESS_NLU[5]: "ASK_SOMETHING",
+            PROCESS_NLU[6]: "ASK_SOMETHING",
+            PROCESS_NLU[7]: "ASK_SOMETHING",
+            PROCESS_NLU[8]: "ASK_SOMETHING",
+            PROCESS_NLU[9]: "ASK_SOMETHING",
+            PROCESS_NLU[10]: "ASK_SOMETHING",
+            PROCESS_NLU[11]: "ASK_SOMETHING",
+            PROCESS_NLU[12]: "ASK_SOMETHING",
+        },
+    )
+    return ask_drink_sm

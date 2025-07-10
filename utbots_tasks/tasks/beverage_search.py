@@ -15,10 +15,7 @@ from utbots_tasks.states.basic_nav import GetCurrentPoseState, RotateInPlaceStat
 
 from utbots_tasks.states.basic_vision import FindObjectState
 
-from utbots_tasks.states.basic_voice import CoquiTTSState       
-from utbots_tasks.states.basic_voice import WhisperSTTState,whisper_process_cb
-from utbots_tasks.states.basic_voice import NLUInference,get_process_nlu,NLUProcess
-from utbots_tasks.states.basic_voice import wait_cb#,greet_and_name_cb, new_face_error_cb
+from utbots_tasks.states.basic_voice import CoquiTTSState, WhisperSTTState, whisper_process_cb, NLUInference, get_process_nlu, NLUProcess, generate_ask_name_sm, generate_ask_drink_sm, wait_cb#,greet_and_name_cb, new_face_error_cb
 
 PROCESS_NLU=get_process_nlu()
 
@@ -121,7 +118,7 @@ def main():
      # Set up ROS 2 logs
     set_ros_loggers()
 
-    # Create a finite state machine (FSM)
+    # Create a finite state machine (FSM)zzz
     sm = StateMachine(outcomes=["success", "failed"])
 
     sm.add_state(
@@ -147,157 +144,32 @@ def main():
         "COME_IN",
         CoquiTTSState(),
         transitions={
-            SUCCEED: "GREET_AND_NAME",
+            SUCCEED: "GREET",
             CANCEL: "failed",
         },
-        remappings = {"tts_text" : "come_in"}
+        remappings = {"tts_text" : "come_in"}   
     )
 
     sm.add_state(
-        "GREET_AND_NAME",
+        "GREET",
         CoquiTTSState(),
         transitions={
-            SUCCEED: "CALLING_WHISPER",
+            SUCCEED: "ASK_NAME",
             CANCEL: "failed",
         },
-        remappings = {"tts_text" : "greet_and_name"}
+        remappings = {"tts_text" : "greet"}   
     )
 
     sm.add_state(
-        "CALLING_WHISPER",
-        WhisperSTTState(),
+        "ASK_NAME",
+        generate_ask_name_sm("ask_name"),
         transitions={
-            SUCCEED: "WHISPER_PROCESS",
-            CANCEL: "failed",
-            ABORT: "failed",
-        },
-    )
-
-    sm.add_state(
-        "WHISPER_PROCESS",
-        CbState(["process_whisper1","process_whisper2","process_whisper3"],whisper_process_cb),
-        transitions={
-            "process_whisper1": "CALLING_WHISPER",
-            "process_whisper2": "NLU_INFERENCE",
-            # "process_whisper3": "outcome4",
-
-        },
-    )
-
-    sm.add_state(
-        "NLU_INFERENCE",
-        NLUInference(),
-        transitions={
-            SUCCEED: "NLU_PROCESS",
-            CANCEL: "failed",
-            ABORT: "failed",
-        },
-        remappings={"nlu_input_text": "whispered"},
-    )
-
-    sm.add_state(
-        "NLU_PROCESS",
-        NLUProcess(True),  # Set verbose to True for detailed logging     
-        transitions={
-            PROCESS_NLU[0]: "GREET_AND_NAME",
-            PROCESS_NLU[1]: "GREET_AND_NAME",
-            PROCESS_NLU[2]: "GREET_AND_NAME",
-            PROCESS_NLU[3]: "GREET_AND_NAME",
-            PROCESS_NLU[4]: "GREET_AND_NAME",
-            PROCESS_NLU[5]: "GREET_AND_NAME",
-            PROCESS_NLU[6]: "GREET_AND_NAME",
-            PROCESS_NLU[7]: "GREET_AND_NAME",
-            PROCESS_NLU[8]: "GREET_AND_NAME",
-            PROCESS_NLU[9]: "GREET_AND_NAME_VER_TALK",
-            PROCESS_NLU[10]: "GREET_AND_NAME_VER_TALK",
-            PROCESS_NLU[11]: "GREET_AND_NAME",
-            PROCESS_NLU[12]: "GREET_AND_NAME",
-        },
-    )
-
-
-    # sm.add_state(
-    #     "GREET_AND_NAME_VER",
-    #     CbState(["to_tts"],greet_and_name_cb),
-    #     transitions={
-    #         "to_tts": "GREET_AND_NAME_VER_TALK",
-    #     },
-    #     # remappings = {"tts_text" : "greet_and_name"}
-    # )
-
-    sm.add_state(
-        "GREET_AND_NAME_VER_TALK",
-        CoquiTTSState(),
-        transitions={
-            SUCCEED: "CALLING_WHISPER_VER",
+            SUCCEED: "ASK_DRINK",
             CANCEL: "failed",
         },
-        # remappings = {"tts_text" : "greet_and_name"}
+        remappings = {"tts_text" : "ask_name"}
     )
 
-
-    sm.add_state(
-        "CALLING_WHISPER_VER",
-        WhisperSTTState(),
-        transitions={
-            SUCCEED: "WHISPER_PROCESS_VER",
-            CANCEL: "failed",
-            ABORT: "failed",
-        },
-    )
-
-    sm.add_state(
-        "WHISPER_PROCESS_VER",
-        CbState(["process_whisper1","process_whisper2","process_whisper3"],whisper_process_cb),
-        transitions={
-            "process_whisper1": "CALLING_WHISPER_VER",
-            "process_whisper2": "NLU_INFERENCE_VER",
-            # "process_whisper3": "outcome4",
-
-        },
-    )
-
-    sm.add_state(
-        "NLU_INFERENCE_VER",
-        NLUInference(),
-        transitions={
-            SUCCEED: "NLU_PROCESS_VER",
-            CANCEL: "failed",
-            ABORT: "failed",
-        },
-        remappings={"nlu_input_text": "whispered"},
-    )
-
-    sm.add_state(
-        "NLU_PROCESS_VER",
-        NLUProcess(True),  # Set verbose to True for detailed logging     
-        transitions={
-            PROCESS_NLU[0]: "GREET_AND_NAME",
-            # PROCESS_NLU[1]: "GREET_AND_NAME",
-            PROCESS_NLU[2]: "NEW_FACE",
-            PROCESS_NLU[2]: "ASK_DRINK",
-            PROCESS_NLU[3]: "NEW_FACE_ERROR",
-            PROCESS_NLU[4]: "GREET_AND_NAME",
-            PROCESS_NLU[5]: "GREET_AND_NAME",
-            PROCESS_NLU[6]: "GREET_AND_NAME",
-            PROCESS_NLU[7]: "GREET_AND_NAME",
-            PROCESS_NLU[8]: "GREET_AND_NAME",
-            PROCESS_NLU[9]: "GREET_AND_NAME",
-            PROCESS_NLU[10]: "GREET_AND_NAME",
-            PROCESS_NLU[11]: "GREET_AND_NAME",
-            PROCESS_NLU[12]: "GREET_AND_NAME",
-        },
-    )
-
-    sm.add_state(
-        "NEW_FACE_ERROR",
-        CoquiTTSState(),
-        transitions={
-            SUCCEED: "CALLING_WHISPER_VER",
-            CANCEL: "failed",
-        },
-        # remappings = {"tts_text" : "greet_and_name"}
-    )
 
     sm.add_state(
         "NEW_FACE",
@@ -312,134 +184,19 @@ def main():
 
     sm.add_state(
         "ASK_DRINK",
-        CoquiTTSState(),
+        generate_ask_drink_sm("ask_drink"),
         transitions={
-            SUCCEED: "CALLING_WHISPER2",
+            SUCCEED: "ASK_FOLLOW",
             CANCEL: "failed",
         },
         remappings = {"tts_text" : "ask_drink"}
-    )
-    
-    sm.add_state(
-        "CALLING_WHISPER2",
-        WhisperSTTState(),
-        transitions={
-            SUCCEED: "WHISPER_PROCESS2",
-            CANCEL: "failed",
-            ABORT: "failed",
-        },
-    )
-
-    sm.add_state(
-        "WHISPER_PROCESS2",
-        CbState(["process_whisper1","process_whisper2","process_whisper3"],whisper_process_cb),
-        transitions={
-            "process_whisper1": "CALLING_WHISPER2",
-            "process_whisper2": "NLU_INFERENCE2",
-            # "process_whisper3": "outcome4",
-
-        },
-    )
-
-    sm.add_state(
-        "NLU_INFERENCE2",
-        NLUInference(),
-        transitions={
-            SUCCEED: "NLU_PROCESS2",
-            CANCEL: "failed",
-            ABORT: "failed",
-        },
-        remappings={"nlu_input_text": "whispered"},
-    )
-
-    sm.add_state(
-        "NLU_PROCESS2",
-        NLUProcess(True),  # Set verbose to True for detailed logging     
-        transitions={
-            PROCESS_NLU[0]: "ASK_DRINK",
-            PROCESS_NLU[1]: "ASK_DRINK",
-            PROCESS_NLU[2]: "ASK_DRINK",
-            PROCESS_NLU[3]: "ASK_DRINK",
-            PROCESS_NLU[4]: "ASK_DRINK",
-            PROCESS_NLU[5]: "ASK_DRINK",
-            PROCESS_NLU[6]: "ASK_DRINK",
-            PROCESS_NLU[7]: "ASK_DRINK",
-            PROCESS_NLU[8]: "ASK_DRINK",
-            PROCESS_NLU[9]: "ASK_DRINK",
-            PROCESS_NLU[10]: "ASK_DRINK",
-            PROCESS_NLU[11]: "ASK_DRINK_VER_TALK",
-            PROCESS_NLU[12]: "ASK_DRINK",
-        },
-    )
-
-    sm.add_state(
-        "ASK_DRINK_VER_TALK",
-        CoquiTTSState(),
-        transitions={
-            SUCCEED: "CALLING_WHISPER_VER2",
-            CANCEL: "failed",
-        },
-        # remappings = {"tts_text" : "greet_and_name"}
-    )
-
-
-    sm.add_state(
-        "CALLING_WHISPER_VER2",
-        WhisperSTTState(),
-        transitions={
-            SUCCEED: "WHISPER_PROCESS_VER2",
-            CANCEL: "failed",
-            ABORT: "failed",
-        },
-    )
-
-    sm.add_state(
-        "WHISPER_PROCESS_VER2",
-        CbState(["process_whisper1","process_whisper2","process_whisper3"],whisper_process_cb),
-        transitions={
-            "process_whisper1": "CALLING_WHISPER_VER2",
-            "process_whisper2": "NLU_INFERENCE_VER2",
-            # "process_whisper3": "outcome4",
-
-        },
-    )
-
-    sm.add_state(
-        "NLU_INFERENCE_VER2",
-        NLUInference(),
-        transitions={
-            SUCCEED: "NLU_PROCESS_VER2",
-            CANCEL: "failed",
-            ABORT: "failed",
-        },
-        remappings={"nlu_input_text": "whispered"},
-    )
-
-    sm.add_state(
-        "NLU_PROCESS_VER2",
-        NLUProcess(True),  # Set verbose to True for detailed logging     
-        transitions={
-            PROCESS_NLU[0]: "ASK_DRINK",
-            PROCESS_NLU[1]: "ASK_DRINK",
-            PROCESS_NLU[2]: "ASK_FOLLOW",
-            PROCESS_NLU[3]: "ASK_DRINK",
-            PROCESS_NLU[4]: "ASK_DRINK",
-            PROCESS_NLU[5]: "ASK_DRINK",
-            PROCESS_NLU[6]: "ASK_DRINK",
-            PROCESS_NLU[7]: "ASK_DRINK",
-            PROCESS_NLU[8]: "ASK_DRINK",
-            PROCESS_NLU[9]: "ASK_DRINK",
-            PROCESS_NLU[10]: "ASK_DRINK",
-            PROCESS_NLU[11]: "ASK_DRINK",
-            PROCESS_NLU[12]: "ASK_DRINK",
-        },
     )
 
     sm.add_state(
         "ASK_FOLLOW",
         CoquiTTSState(),
         transitions={
-            SUCCEED: "GO_TO_ROOM",
+            SUCCEED: "FIND_BEVERAGE",
             CANCEL: "failed",
         },
         remappings = {"tts_text" : "ask_follow"}
@@ -447,33 +204,33 @@ def main():
 
 # Find beverage in the beverage area
 
-    sm.add_state(
-        "GO_TO_ROOM",
-        GoToWaypointState(),
-        transitions={
-            SUCCEED: "GET_CURRENT_POSE2",
-            ABORT: "failed"
-        },
-        remappings={"waypoint_nametag" : "room"}
-    )
+    # sm.add_state(
+    #     "GO_TO_ROOM",
+    #     GoToWaypointState(),
+    #     transitions={
+    #         SUCCEED: "GET_CURRENT_POSE2",
+    #         ABORT: "failed"
+    #     },
+    #     remappings={"waypoint_nametag" : "room"}
+    # )
 
-    sm.add_state(
-        "GET_CURRENT_POSE2",
-        GetCurrentPoseState(),
-        transitions={
-            SUCCEED: "ROTATE2",
-            ABORT: "failed"
-        },
-    )
-    sm.add_state(
-        "ROTATE2",
-        RotateInPlaceState(node),
-        transitions={
-            SUCCEED: "FIND_BEVERAGE",
-            CANCEL: "failed",
-            ABORT: "failed",
-        },
-    )
+    # sm.add_state(
+    #     "GET_CURRENT_POSE2",
+    #     GetCurrentPoseState(),
+    #     transitions={
+    #         SUCCEED: "ROTATE2",
+    #         ABORT: "failed"
+    #     },
+    # )
+    # sm.add_state(
+    #     "ROTATE2",
+    #     RotateInPlaceState(node),
+    #     transitions={
+    #         SUCCEED: "FIND_BEVERAGE",
+    #         CANCEL: "failed",
+    #         ABORT: "failed",
+    #     },
+    # )
 
     sm.add_state(
         "FIND_BEVERAGE",
@@ -508,7 +265,7 @@ def main():
         "ASK_FOLLOW_LIVING_ROOM",
         CoquiTTSState(),
         transitions={
-            SUCCEED: "GO_TO_LIVING_ROOM",
+            SUCCEED: "FIND_PEOPLE",
             CANCEL: "failed",
         },
         remappings = {"tts_text" : "ask_follow"}
@@ -516,33 +273,33 @@ def main():
 
 # Find seat in the living room
 
-    sm.add_state(
-        "GO_TO_LIVING_ROOM",
-        GoToWaypointState(),
-        transitions={
-            SUCCEED: "GET_CURRENT_POSE",
-            ABORT: "failed"
-        },
-        remappings={"waypoint_nametag" : "living_room"}
-    )
+    # sm.add_state(
+    #     "GO_TO_LIVING_ROOM",
+    #     GoToWaypointState(),
+    #     transitions={
+    #         SUCCEED: "GET_CURRENT_POSE",
+    #         ABORT: "failed"
+    #     },
+    #     remappings={"waypoint_nametag" : "living_room"}
+    # )
 
-    sm.add_state(
-        "GET_CURRENT_POSE",
-        GetCurrentPoseState(),
-        transitions={
-            SUCCEED: "ROTATE",
-            ABORT: "failed"
-        },
-    )
-    sm.add_state(
-        "ROTATE",
-        RotateInPlaceState(node),
-        transitions={
-            SUCCEED: "FIND_SEAT",
-            CANCEL: "failed",
-            ABORT: "failed",
-        },
-    )
+    # sm.add_state(
+    #     "GET_CURRENT_POSE",
+    #     GetCurrentPoseState(),
+    #     transitions={
+    #         SUCCEED: "ROTATE",
+    #         ABORT: "failed"
+    #     },
+    # )
+    # sm.add_state(
+    #     "ROTATE",
+    #     RotateInPlaceState(node),
+    #     transitions={
+    #         SUCCEED: "FIND_SEAT",
+    #         CANCEL: "failed",
+    #         ABORT: "failed",
+    #     },
+    # )
 
     sm.add_state(
         "FIND_PEOPLE",
@@ -625,7 +382,8 @@ def main():
 
     # TTS blackboard variables for this task
     blackboard["come_in"] = "Hello, please come in."
-    blackboard["greet_and_name"] = "I am Hestia. What is your name."
+    blackboard["greet"] = "I am Hestia." 
+    blackboard["ask_name"] = "What is your name."
     blackboard["ask_drink"] = "What drink would you like."
     blackboard["ask_follow"] = "Please follow me."
     blackboard["tts_text"] = "come_in."

@@ -46,23 +46,24 @@ def generate_launch_description():
         ),
 
         # Launch yolov8_ros yolo_node
-        # Node(
-        #     package='yolov8_ros',
-        #     executable='yolo_node',
-        #     name='yolo_node',
-        #     output='screen'
-        # ),
+        Node(
+            package='yolov8_ros',
+            executable='yolo_node',
+            name='yolo_node',
+            output='screen'
+        ),
 
         # Launch usb_cam_node_exe with parameter
-        # Node(
-        #     package='usb_cam',
-        #     executable='usb_cam_node_exe',
-        #     name='usb_cam',
-        #     output='screen',
-        #     parameters=[{
-        #         'video_device': '/dev/video0'
-        #     }]
-        # ),
+        Node(
+            package='usb_cam',
+            executable='usb_cam_node_exe',
+            name='usb_cam',
+            output='screen',
+            parameters=[{
+                'video_device': '/dev/video0'
+            }]
+        ),
+        
         Node(
             package='utbots_nlu',
             executable='rasa_nlu_interpreter',
