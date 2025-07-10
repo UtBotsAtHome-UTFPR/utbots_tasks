@@ -11,10 +11,10 @@ import os
 def generate_launch_description():
     # Paths to other launch files
     nav_launch_path = os.path.join(
-        get_package_share_directory('utbots_nav'), 'launch')
+        get_package_share_directory('utbots_nav'), 'launch', 'nav.launch.py')
 
     recognition_launch_path = os.path.join(
-        get_package_share_directory('utbots_face_recognition'), 'launch')
+        get_package_share_directory('utbots_face_recognition'), 'launch', 'recognition.launch.py')
 
     stt_launch_dir = os.path.join(
         get_package_share_directory('vad_ros'), 'launch')
@@ -89,7 +89,7 @@ def generate_launch_description():
             ]
         ),
 
-        # # Launch receptionist node
+        # Launch receptionist node
         # Node(
         #     package='utbots_tasks',
         #     executable='receptionist',
