@@ -1,0 +1,41 @@
+[0.421s] Invoking command in '/home/laser/ros2_ws/src/utbots_tasks': PYTHONPATH=/home/laser/ros2_ws/src/utbots_tasks/build/utbots_tasks/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/laser/ros2_ws/src/utbots_tasks/install/utbots_tasks/lib/python3.10/site-packages:${PYTHONPATH} VIRTUAL_ENV_PROMPT=(ros_env) /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base build/utbots_tasks build --build-base /home/laser/ros2_ws/src/utbots_tasks/build/utbots_tasks/build install --record /home/laser/ros2_ws/src/utbots_tasks/build/utbots_tasks/install.log --single-version-externally-managed install_data
+[0.591s] running egg_info
+[0.591s] writing build/utbots_tasks/utbots_tasks.egg-info/PKG-INFO
+[0.591s] writing dependency_links to build/utbots_tasks/utbots_tasks.egg-info/dependency_links.txt
+[0.591s] writing entry points to build/utbots_tasks/utbots_tasks.egg-info/entry_points.txt
+[0.592s] writing requirements to build/utbots_tasks/utbots_tasks.egg-info/requires.txt
+[0.592s] writing top-level names to build/utbots_tasks/utbots_tasks.egg-info/top_level.txt
+[0.593s] reading manifest file 'build/utbots_tasks/utbots_tasks.egg-info/SOURCES.txt'
+[0.594s] writing manifest file 'build/utbots_tasks/utbots_tasks.egg-info/SOURCES.txt'
+[0.594s] running build
+[0.594s] running build_py
+[0.594s] copying utbots_tasks/tasks/receptionist.py -> /home/laser/ros2_ws/src/utbots_tasks/build/utbots_tasks/build/lib/utbots_tasks/tasks
+[0.594s] copying utbots_tasks/tasks/beverage_search.py -> /home/laser/ros2_ws/src/utbots_tasks/build/utbots_tasks/build/lib/utbots_tasks/tasks
+[0.594s] copying utbots_tasks/tasks/voice_nav.py -> /home/laser/ros2_ws/src/utbots_tasks/build/utbots_tasks/build/lib/utbots_tasks/tasks
+[0.594s] copying utbots_tasks/states/basic_voice.py -> /home/laser/ros2_ws/src/utbots_tasks/build/utbots_tasks/build/lib/utbots_tasks/states
+[0.594s] copying utbots_tasks/states/basic_nav.py -> /home/laser/ros2_ws/src/utbots_tasks/build/utbots_tasks/build/lib/utbots_tasks/states
+[0.595s] running install
+[0.595s] running install_lib
+[0.595s] copying /home/laser/ros2_ws/src/utbots_tasks/build/utbots_tasks/build/lib/utbots_tasks/tasks/receptionist.py -> /home/laser/ros2_ws/src/utbots_tasks/install/utbots_tasks/lib/python3.10/site-packages/utbots_tasks/tasks
+[0.595s] copying /home/laser/ros2_ws/src/utbots_tasks/build/utbots_tasks/build/lib/utbots_tasks/tasks/beverage_search.py -> /home/laser/ros2_ws/src/utbots_tasks/install/utbots_tasks/lib/python3.10/site-packages/utbots_tasks/tasks
+[0.595s] copying /home/laser/ros2_ws/src/utbots_tasks/build/utbots_tasks/build/lib/utbots_tasks/tasks/voice_nav.py -> /home/laser/ros2_ws/src/utbots_tasks/install/utbots_tasks/lib/python3.10/site-packages/utbots_tasks/tasks
+[0.596s] copying /home/laser/ros2_ws/src/utbots_tasks/build/utbots_tasks/build/lib/utbots_tasks/states/basic_voice.py -> /home/laser/ros2_ws/src/utbots_tasks/install/utbots_tasks/lib/python3.10/site-packages/utbots_tasks/states
+[0.596s] copying /home/laser/ros2_ws/src/utbots_tasks/build/utbots_tasks/build/lib/utbots_tasks/states/basic_nav.py -> /home/laser/ros2_ws/src/utbots_tasks/install/utbots_tasks/lib/python3.10/site-packages/utbots_tasks/states
+[0.596s] byte-compiling /home/laser/ros2_ws/src/utbots_tasks/install/utbots_tasks/lib/python3.10/site-packages/utbots_tasks/tasks/receptionist.py to receptionist.cpython-310.pyc
+[0.597s] byte-compiling /home/laser/ros2_ws/src/utbots_tasks/install/utbots_tasks/lib/python3.10/site-packages/utbots_tasks/tasks/beverage_search.py to beverage_search.cpython-310.pyc
+[0.598s] byte-compiling /home/laser/ros2_ws/src/utbots_tasks/install/utbots_tasks/lib/python3.10/site-packages/utbots_tasks/tasks/voice_nav.py to voice_nav.cpython-310.pyc
+[0.599s] byte-compiling /home/laser/ros2_ws/src/utbots_tasks/install/utbots_tasks/lib/python3.10/site-packages/utbots_tasks/states/basic_voice.py to basic_voice.cpython-310.pyc
+[0.600s] byte-compiling /home/laser/ros2_ws/src/utbots_tasks/install/utbots_tasks/lib/python3.10/site-packages/utbots_tasks/states/basic_nav.py to basic_nav.cpython-310.pyc
+[0.601s] running install_data
+[0.601s] copying launch/receptionist.launch.py -> /home/laser/ros2_ws/src/utbots_tasks/install/utbots_tasks/share/utbots_tasks/launch
+[0.602s] copying launch/voice_nav.launch.py -> /home/laser/ros2_ws/src/utbots_tasks/install/utbots_tasks/share/utbots_tasks/launch
+[0.602s] running install_egg_info
+[0.603s] removing '/home/laser/ros2_ws/src/utbots_tasks/install/utbots_tasks/lib/python3.10/site-packages/utbots_tasks-0.0.0-py3.10.egg-info' (and everything under it)
+[0.603s] Copying build/utbots_tasks/utbots_tasks.egg-info to /home/laser/ros2_ws/src/utbots_tasks/install/utbots_tasks/lib/python3.10/site-packages/utbots_tasks-0.0.0-py3.10.egg-info
+[0.603s] running install_scripts
+[0.618s] Installing beverage_search script to /home/laser/ros2_ws/src/utbots_tasks/install/utbots_tasks/lib/utbots_tasks
+[0.618s] Installing receptionist script to /home/laser/ros2_ws/src/utbots_tasks/install/utbots_tasks/lib/utbots_tasks
+[0.618s] Installing recognition script to /home/laser/ros2_ws/src/utbots_tasks/install/utbots_tasks/lib/utbots_tasks
+[0.618s] Installing voice_nav_smach script to /home/laser/ros2_ws/src/utbots_tasks/install/utbots_tasks/lib/utbots_tasks
+[0.618s] writing list of installed files to '/home/laser/ros2_ws/src/utbots_tasks/build/utbots_tasks/install.log'
+[0.633s] Invoked command in '/home/laser/ros2_ws/src/utbots_tasks' returned '0': PYTHONPATH=/home/laser/ros2_ws/src/utbots_tasks/build/utbots_tasks/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/laser/ros2_ws/src/utbots_tasks/install/utbots_tasks/lib/python3.10/site-packages:${PYTHONPATH} VIRTUAL_ENV_PROMPT=(ros_env) /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py egg_info --egg-base build/utbots_tasks build --build-base /home/laser/ros2_ws/src/utbots_tasks/build/utbots_tasks/build install --record /home/laser/ros2_ws/src/utbots_tasks/build/utbots_tasks/install.log --single-version-externally-managed install_data
