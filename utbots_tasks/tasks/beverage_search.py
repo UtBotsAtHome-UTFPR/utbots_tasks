@@ -170,12 +170,20 @@ def main():
         "ASK_NAME",
         generate_ask_name_sm("ask_name"),
         transitions={
-            SUCCEED: "NEW_FACE",
+            SUCCEED: "CONFIRM_NAME",
             CANCEL: "failed",
         },
         remappings = {"tts_text" : "ask_name"}
     )
 
+    sm.add_state(
+        "CONFIRM_NAME",
+        CoquiTTSState(),
+        transitions={
+            SUCCEED: "NEW_FACE",
+            CANCEL: "failed",
+        },
+    )
 
     sm.add_state(
         "NEW_FACE",
@@ -185,17 +193,26 @@ def main():
             CANCEL: "failed",
             ABORT: "failed",
         },
-        remappings={"operator" : "nlu_data"}
+        remappings={"operator" : "name"}
     )
 
     sm.add_state(
         "ASK_DRINK",
         generate_ask_drink_sm("ask_drink"),
         transitions={
-            SUCCEED: "ASK_FOLLOW",
+            SUCCEED: "CONFIRM_DRINK",
             CANCEL: "failed",
         },
         remappings = {"tts_text" : "ask_drink"}
+    )
+
+    sm.add_state(
+        "CONFIRM_DRINK",
+        CoquiTTSState(),
+        transitions={
+            SUCCEED: "ASK_FOLLOW",
+            CANCEL: "failed",
+        },
     )
 
     sm.add_state(
@@ -377,7 +394,7 @@ def main():
     blackboard["beverage"] = "bottle"
     blackboard["seat"] = "chair"
     blackboard["person"] = "person"
-    blackboard["rotate"] = -45
+    blackboard["rotate"] = 45
     blackboard['yaml_path'] = '/home/laser/ros2_ws/src/utbots_navigation/utbots_nav/map/pitaco_waypoints.yaml'
     blackboard['waypoint_room'] = 'room'
 
