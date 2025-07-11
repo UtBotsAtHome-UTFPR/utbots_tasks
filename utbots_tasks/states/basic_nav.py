@@ -1,4 +1,4 @@
-from yasmin import State, Blackboard
+from yasmin import State, Blackboard, StateMachine
 from yasmin_ros import MonitorState, ActionState
 from yasmin_ros.basic_outcomes import SUCCEED, CANCEL, ABORT
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSDurabilityPolicy
@@ -187,4 +187,23 @@ class WaitDoorOpenState(MonitorState):
             print(blackboard['log'])
             return ABORT
         
-# Teste
+def generate_rotate_in_place(node: Node) -> StateMachine:
+    sm = StateMachine(outcomes=[SUCCEED, CANCEL, ABORT])
+    sm.add_state(
+        "GET_CURRENT_POSE",
+        GetCurrentPoseState(),
+        transitions={
+            SUCCEED: "ROTATE",
+            ABORT: ABORT
+        },
+    )
+    sm.add_state(
+        "ROTATE",
+        RotateInPlaceState(node),
+        transitions={
+            SUCCEED: SUCCEED,
+            CANCEL: CANCEL,
+            ABORT: ABORT,
+        },
+    )
+    return sm
