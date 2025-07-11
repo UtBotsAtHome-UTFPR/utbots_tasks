@@ -587,6 +587,7 @@ class NLUProcess(CbState):
             case "like_drink":
                 answer=f"The operator likes {data}, does he?Please deny or affirm the sentence."
                 outcome="describe_ambient"
+                blackboard["drink"]= data 
             case "pick_object":
                 answer=f"I was asked to pick {data}!Please deny or confirm the request."
                 outcome="describe_ambient"

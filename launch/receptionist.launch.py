@@ -24,14 +24,14 @@ def generate_launch_description():
     return LaunchDescription([
  
         # Include utbots_nav launch file with arguments
-        # IncludeLaunchDescription(
-        #     PythonLaunchDescriptionSource(nav_launch_path),
-        #     launch_arguments={
-        #         'use_sim_time': 'false',
-        #         'use_imu': 'false',
-        #         'map': '/home/laser/ros2_ws/src/utbots_navigation/utbots_nav/map/pitaco.yaml'
-        #     }.items()
-        # ),
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(nav_launch_path),
+            launch_arguments={
+                'use_sim_time': 'false',
+                'use_imu': 'false',
+                'map': '/home/laser/ros2_ws/src/utbots_navigation/utbots_nav/map/pitaco.yaml'
+            }.items()
+        ),
 
         # Include face recognition launch file
         IncludeLaunchDescription(
@@ -62,7 +62,7 @@ def generate_launch_description():
             name='usb_cam',
             output='screen',
             parameters=[{
-                'video_device': '/dev/video2'
+                'video_device': '/dev/video0'
             }]
         ),
         
