@@ -1,3 +1,4 @@
+import yasmin
 from yasmin import Blackboard
 from yasmin_ros import ActionState
 from yasmin_ros.basic_outcomes import SUCCEED, ABORT, CANCEL
@@ -22,8 +23,15 @@ class FindObjectState(ActionState):
 
     def create_goal_handler(self, blackboard: Blackboard) -> YOLOBatchDetection.Goal:
         goal = YOLOBatchDetection.Goal()
-        goal.target_category = String()
-        goal.target_category.data = blackboard[self._remap("object")]
+        objects = blackboard[self._remap("objects")]
+        if isinstance(objects, str):
+            goal.target_categories = [String(data=objects)]
+            yasmin.YASMIN_LOG_INFO(objects)
+        elif isinstance(objects, list):
+            yasmin.YASMIN_LOG_INFO(f"Target objects: {objects}")
+            goal.target_categories = [String(data=obj) for obj in objects]
+        else:
+            raise ValueError("Expected 'objects' to be a string or a list.")
         goal.batch_size = Int32()
         goal.batch_size.data = blackboard["batch_size"]
         goal.iou_threshold = Float32()
@@ -34,6 +42,7 @@ class FindObjectState(ActionState):
 
     def response_handler(self, blackboard: Blackboard, response: YOLOBatchDetection.Result) -> str:
         detections = response.detected_objs.bounding_boxes
+        yasmin.YASMIN_LOG_INFO(f"{detections}")
         target_key = self._remap("detections")
         blackboard[target_key] = detections if detections else []
         return SUCCEED if detections else CANCEL

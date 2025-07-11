@@ -26,7 +26,11 @@ class PointToObjectState(State):
     def execute(self, blackboard: Blackboard) -> str:
         # yasmin.YASMIN_LOG_INFO("Executing state FOO")
         detections = blackboard["detections"]
-        object = blackboard["object"]
+        objects = blackboard["objects"]
+        if isinstance(objects, str):
+            object = objects
+        elif isinstance(objects, list):
+            object = objects[0]
         if len(detections) > 0:
             obj_bb = detections[0]
             x_cent = (obj_bb.xmaxn - obj_bb.xminn)/2 + obj_bb.xminn
@@ -127,14 +131,14 @@ def main():
     # Create a finite state machine (FSM)zzz
     sm = StateMachine(outcomes=["success", "failed"])
 
-    sm.add_state(
-        "SET_INIT_POSE",
-        SetInitialPose(node, 0.0, 0.0, 0.0),
-        transitions={
-            SUCCEED: "COME_IN",
-            ABORT: "failed"
-        }
-    )
+    # sm.add_state(
+    #     "SET_INIT_POSE",
+    #     SetInitialPose(node, 0.0, 0.0, 0.0),
+    #     transitions={
+    #         SUCCEED: "COME_IN",
+    #         ABORT: "failed"
+    #     }
+    # )
 
     # sm.add_state(
     #     "WAIT_DOOR",
@@ -150,10 +154,20 @@ def main():
         "COME_IN",
         CoquiTTSState(),
         transitions={
-            SUCCEED: "GREET",
+            SUCCEED: "FIND_OPERATOR_AT_DOOR",
             CANCEL: "failed",
         },
         remappings = {"tts_text" : "come_in"}   
+    )
+
+    sm.add_state(
+        "FIND_OPERATOR_AT_DOOR",
+        FindObjectState(remappings={"objects": "person", "detections": "bboxes2"}),
+        transitions={
+            SUCCEED: "GREET",
+            CANCEL: "FIND_OPERATOR_AT_DOOR",
+            ABORT: "failed",
+        }
     )
 
     sm.add_state(
@@ -168,7 +182,7 @@ def main():
 
     sm.add_state(
         "ASK_NAME",
-        generate_ask_name_sm("ask_name"),
+        generate_ask_name_sm(),
         transitions={
             SUCCEED: "CONFIRM_NAME",
             CANCEL: "failed",
@@ -198,7 +212,7 @@ def main():
 
     sm.add_state(
         "ASK_DRINK",
-        generate_ask_drink_sm("ask_drink"),
+        generate_ask_drink_sm(),
         transitions={
             SUCCEED: "CONFIRM_DRINK",
             CANCEL: "failed",
@@ -219,7 +233,7 @@ def main():
         "ASK_FOLLOW",
         CoquiTTSState(),
         transitions={
-            SUCCEED: "GO_TO_ROOM",
+            SUCCEED: "FIND_BEVERAGE",
             CANCEL: "failed",
         },
         remappings = {"tts_text" : "ask_follow"}
@@ -227,37 +241,37 @@ def main():
 
 # Find beverage in the beverage area
 
-    sm.add_state(
-        "GO_TO_ROOM",
-        GoToWaypointState(),
-        transitions={
-            SUCCEED: "GET_CURRENT_POSE",
-            ABORT: "failed"
-        },
-        remappings={"waypoint_nametag" : "room"}
-    )
+    # sm.add_state(
+    #     "GO_TO_ROOM",
+    #     GoToWaypointState(),
+    #     transitions={
+    #         SUCCEED: "GET_CURRENT_POSE",
+    #         ABORT: "failed"
+    #     },
+    #     remappings={"waypoint_nametag" : "room"}
+    # )
 
-    sm.add_state(
-        "GET_CURRENT_POSE",
-        GetCurrentPoseState(),
-        transitions={
-            SUCCEED: "ROTATE",
-            ABORT: "failed"
-        },
-    )
-    sm.add_state(
-        "ROTATE",
-        RotateInPlaceState(node),
-        transitions={
-            SUCCEED: "FIND_BEVERAGE",
-            CANCEL: "failed",
-            ABORT: "failed",
-        },
-    )
+    # sm.add_state(
+    #     "GET_CURRENT_POSE",
+    #     GetCurrentPoseState(),
+    #     transitions={
+    #         SUCCEED: "ROTATE",
+    #         ABORT: "failed"
+    #     },
+    # )
+    # sm.add_state(
+    #     "ROTATE",
+    #     RotateInPlaceState(node),
+    #     transitions={
+    #         SUCCEED: "FIND_BEVERAGE",
+    #         CANCEL: "failed",
+    #         ABORT: "failed",
+    #     },
+    # )
 
     sm.add_state(
         "FIND_BEVERAGE",
-        FindObjectState(remappings={"object": "beverage"}),
+        FindObjectState(remappings={"objects": "name"}),
         transitions={
             SUCCEED: "POINT_TO_BEVERAGE",
             CANCEL: "POINT_TO_BEVERAGE",
@@ -272,7 +286,7 @@ def main():
             SUCCEED: "DRINK_POSITION_TTS",
             CANCEL: "DRINK_POSITION_TTS"
         },
-        remappings = {"object" : "beverage"}
+        remappings = {"objects" : "name"}
     )
 
     sm.add_state(
@@ -326,7 +340,7 @@ def main():
 
     sm.add_state(
         "FIND_PEOPLE",
-        FindObjectState(remappings={"object": "person", "detections": "bboxes2"}),
+        FindObjectState(remappings={"objects": "person", "detections": "bboxes2"}),
         transitions={
             SUCCEED: "FIND_SEAT",
             CANCEL: "FIND_SEAT",
@@ -336,7 +350,7 @@ def main():
 
     sm.add_state(
         "FIND_SEAT",
-        FindObjectState(remappings={"object": "seat", "detections": "bboxes1"}),
+        FindObjectState(remappings={"objects": "seat", "detections": "bboxes1"}),
         transitions={
             SUCCEED: "FIND_BEST_SEAT",
             CANCEL: "GET_CURRENT_POSE2",
@@ -361,7 +375,7 @@ def main():
             SUCCEED: "TTS_STATE",
             CANCEL: "failed",
         },
-        remappings = {"object" : "seat", "detections" : "object_bbox"}
+        remappings = {"objects" : "seat", "detections" : "object_bbox"}
     )
 
     sm.add_state(

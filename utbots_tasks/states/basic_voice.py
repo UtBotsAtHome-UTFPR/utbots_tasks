@@ -479,7 +479,7 @@ PROCESS_NLU=[
     "say_operator_name",    # 9
     "identify_operator",    # 10
     "describe_ambient",     # 11
-    "like_drink"            # 12
+    "like_drink",           # 12
     "pick_object",          # 13
     "default"]             # 14
 
@@ -697,7 +697,7 @@ class NLUProcess(CbState):
 # - intent: describe_ambient
 #.
 
-def generate_ask_name_sm(tts_text):
+def generate_ask_name_sm():
     ask_name_sm = StateMachine(outcomes=[SUCCEED, CANCEL, ABORT])
     ask_name_sm.add_state(
         "ASK_SOMETHING",
@@ -706,7 +706,7 @@ def generate_ask_name_sm(tts_text):
             SUCCEED: "CALLING_WHISPER",
             CANCEL: ABORT,
         },
-        remappings={"tts_text":tts_text}
+        remappings={"tts_text":"ask_name"}
     )
 
     ask_name_sm.add_state(
@@ -759,7 +759,7 @@ def generate_ask_name_sm(tts_text):
             PROCESS_NLU[11]: "ASK_SOMETHING",
             PROCESS_NLU[12]: "ASK_SOMETHING",
             PROCESS_NLU[13]: "ASK_SOMETHING",
-            # PROCESS_NLU[14]: "ASK_SOMETHING",
+            PROCESS_NLU[14]: "ASK_SOMETHING",
         },
     )
 
@@ -822,12 +822,12 @@ def generate_ask_name_sm(tts_text):
             PROCESS_NLU[11]: "ASK_SOMETHING",
             PROCESS_NLU[12]: "ASK_SOMETHING",
             PROCESS_NLU[13]: "ASK_SOMETHING",
-            # PROCESS_NLU[14]: "ASK_SOMETHING",
+            PROCESS_NLU[14]: "ASK_SOMETHING",
         },
     )
     return ask_name_sm
 
-def generate_ask_drink_sm(tts_text):
+def generate_ask_drink_sm():
     ask_drink_sm = StateMachine(outcomes=[SUCCEED, CANCEL, ABORT])
     ask_drink_sm.add_state(
         "ASK_SOMETHING",
@@ -836,7 +836,7 @@ def generate_ask_drink_sm(tts_text):
             SUCCEED: "CALLING_WHISPER",
             CANCEL: ABORT,
         },
-        remappings={"tts_text":tts_text}
+        remappings={"tts_text":"ask_drink"}
     )
 
     ask_drink_sm.add_state(
