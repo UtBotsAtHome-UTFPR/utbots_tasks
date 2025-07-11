@@ -2,11 +2,68 @@ import rclpy
 
 import yasmin
 from yasmin import CbState, Blackboard, StateMachine
-from yasmin_ros import ActionState
+from yasmin_ros import ActionState, ServiceState
 from yasmin_ros import set_ros_loggers
 from yasmin_ros.basic_outcomes import SUCCEED, ABORT, CANCEL
 from yasmin_viewer import YasminViewerPub
 from utbots_actions.action import NewFace, Recognition
+
+from std_srvs.srv import SetBool
+
+
+'''HOW TO USE, PLEASE READ
+
+This file implements states for new_face_action, recognition_action and sub State Machines
+
+In order to test run: ros2 launch utbots_face_recognition cam_recognition.launch.py and ros2 run utbots_tasks recognition
+
+If you need to change between testing just the state or the hierarquical state machine comment one of the functions in the main function
+
+'''
+
+
+
+class USBCamOn(ServiceState):
+    def __init__(self) -> None:
+        super().__init__(
+            SetBool,  # srv type
+            "/set_capture",  # service name
+            self.create_request_handler,  # cb to create the request
+            #["outcome1"],  # outcomes. Includes (SUCCEED, ABORT)
+            response_handler=self.response_handler,  # cb to process the response
+        )
+
+    def create_request_handler(self, blackboard: Blackboard) -> SetBool.Request:
+        req = SetBool.Request()
+        req.data = True
+        return req
+
+    def response_handler(
+        self, blackboard: Blackboard, response: SetBool.Response
+    ) -> str:
+        
+        return SUCCEED
+
+class USBCamOff(ServiceState):
+    def __init__(self) -> None:
+        super().__init__(
+            SetBool,  # srv type
+            "/set_capture",  # service name
+            self.create_request_handler,  # cb to create the request
+            #["outcome1"],  # outcomes. Includes (SUCCEED, ABORT)
+            response_handler=self.response_handler,  # cb to process the response
+        )
+
+    def create_request_handler(self, blackboard: Blackboard) -> SetBool.Request:
+        req = SetBool.Request()
+        req.data = False
+        return req
+
+    def response_handler(
+        self, blackboard: Blackboard, response: SetBool.Response
+    ) -> str:
+        
+        return SUCCEED
 
 class RecognitionState(ActionState):
 
@@ -82,22 +139,73 @@ class NewFaceState(ActionState):
 
         return SUCCEED
 
-def main():
-    """
-    Main function to execute the ROS 2 action client demo.
+def generate_new_face_sm():
+    new_face_sm = StateMachine(outcomes=[SUCCEED, CANCEL, ABORT])
+    
+    new_face_sm.add_state(
+        "USBCAM_ON_STATE",
+        USBCamOn(),
+        transitions={
+            SUCCEED: "NEW_FACE_STATE",
+            ABORT: ABORT,
+        },
+    )
 
-    This function initializes the ROS 2 client, sets up the finite state
-    machine, adds the states, and starts the action processing.
+    new_face_sm.add_state(
+        "NEW_FACE_STATE",
+        NewFaceState(),
+        transitions={
+            SUCCEED: "USBCAM_OFF_STATE",
+            CANCEL: ABORT,
+            ABORT: ABORT
+        },
+    )
 
-    Parameters:
-        None
+    new_face_sm.add_state(
+        "USBCAM_OFF_STATE",
+        USBCamOff(),
+        transitions={
+            SUCCEED: SUCCEED,
+            ABORT: ABORT,
+        },
+    )
 
-    Returns:
-        None
+    return new_face_sm
 
-    Raises:
-        KeyboardInterrupt: If the user interrupts the execution.
-    """
+def generate_recognition_sm():
+    recognition_sm = StateMachine(outcomes=[SUCCEED, CANCEL, ABORT])
+    
+    recognition_sm.add_state(
+        "USBCAM_ON_STATE",
+        USBCamOn(),
+        transitions={
+            SUCCEED: "RECOGNITION_STATE",
+            ABORT: ABORT,
+        },
+    )
+
+    recognition_sm.add_state(
+        "RECOGNITION_STATE",
+        RecognitionState(),
+        transitions={
+            SUCCEED: "USBCAM_OFF_STATE",
+            CANCEL: ABORT,
+            ABORT: ABORT
+        },
+    )
+
+    recognition_sm.add_state(
+        "USBCAM_OFF_STATE",
+        USBCamOff(),
+        transitions={
+            SUCCEED: SUCCEED,
+            ABORT: ABORT,
+        },
+    )
+
+    return recognition_sm
+
+def state_test():
     yasmin.YASMIN_LOG_INFO("yasmin_action_client_demo")
 
     # Initialize ROS 2
@@ -124,7 +232,7 @@ def main():
         "CALLING_RECOGNITION",
         RecognitionState(),
         transitions={
-            SUCCEED: SUCCEED, # All mapping to SUCCEED for now
+            SUCCEED: "CAM_OFF_2", # All mapping to SUCCEED for now
             CANCEL: CANCEL,
             ABORT: SUCCEED,
         },
@@ -149,6 +257,55 @@ def main():
     if rclpy.ok():
         rclpy.shutdown()
 
+def sm_test():
+    yasmin.YASMIN_LOG_INFO("yasmin_sm_client_demo")
 
-if __name__ == "__main__":
-    main()
+    # Initialize ROS 2
+    rclpy.init()
+
+    # Set up ROS 2 logs
+    set_ros_loggers()
+
+    # Create a finite state machine (FSM)
+    sm = StateMachine(outcomes=[SUCCEED, CANCEL])
+
+    sm.add_state(
+        "NEW_FACE_SM",
+        generate_new_face_sm(),
+        transitions={
+            SUCCEED: "RECOGNITION_SM",
+            CANCEL: CANCEL,
+        },
+    )
+
+    sm.add_state(
+        "RECOGNITION_SM",
+        generate_recognition_sm(),
+        transitions={
+            SUCCEED: SUCCEED,
+            CANCEL: CANCEL,
+        },
+    )
+
+    # Publish FSM information
+    YasminViewerPub("YASMIN_ACTION_CLIENT_DEMO", sm)
+
+    # Create an initial blackboard with the input value
+    blackboard = Blackboard()
+    #blackboard["n"] = 10  # Set the Fibonacci order to 10
+
+    # Execute the FSM
+    try:
+        outcome = sm(blackboard)
+        yasmin.YASMIN_LOG_INFO(outcome)
+    except KeyboardInterrupt:
+        if sm.is_running():
+            sm.cancel_state()  # Cancel the state if interrupted
+
+    # Shutdown ROS 2
+    if rclpy.ok():
+        rclpy.shutdown()
+
+def main():
+    #state_test()
+    sm_test()
