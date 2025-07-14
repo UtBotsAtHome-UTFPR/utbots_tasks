@@ -60,7 +60,10 @@ def generate_launch_description():
             package='yolov8_ros',
             executable='yolo_node',
             name='yolo_node',
-            output='screen'
+            output='screen',
+            parameters=[{
+                'camera_topic':'/camera/camera/color/image_raw'
+            }]
         ),
 
         # Launch usb_cam_node_exe with parameter
