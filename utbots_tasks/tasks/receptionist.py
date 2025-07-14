@@ -9,13 +9,13 @@ from yasmin_ros import set_ros_loggers
 from yasmin_ros.basic_outcomes import SUCCEED, ABORT, CANCEL
 from yasmin_viewer import YasminViewerPub
 
-from utbots_tasks.states.basic_face import RecognitionState, NewFaceState
+from utbots_tasks.states.basic_face import RecognitionState, NewFaceState, generate_new_face_sm, generate_recognition_sm
 
-from utbots_tasks.states.basic_nav import GetCurrentPoseState, RotateInPlaceState, GoToWaypointState, WaitDoorOpenState, SetInitialPose
+from utbots_tasks.states.basic_nav import GetCurrentPoseState, generate_rotate_in_place, GoToWaypointState, WaitDoorOpenState, SetInitialPose
 
 from utbots_tasks.states.basic_vision import FindObjectState
 
-from utbots_tasks.states.basic_voice import CoquiTTSState, WhisperSTTState, whisper_process_cb, NLUInference, get_process_nlu, NLUProcess, generate_ask_name_sm, generate_ask_drink_sm, wait_cb#,greet_and_name_cb, new_face_error_cb
+from utbots_tasks.states.basic_voice import CoquiTTSState, get_process_nlu, generate_ask_name_sm, generate_ask_drink_sm#,greet_and_name_cb, new_face_error_cb
 
 PROCESS_NLU=get_process_nlu()
 
@@ -26,7 +26,11 @@ class PointToObjectState(State):
     def execute(self, blackboard: Blackboard) -> str:
         # yasmin.YASMIN_LOG_INFO("Executing state FOO")
         detections = blackboard["detections"]
-        object = blackboard["object"]
+        objects = blackboard["objects"]
+        if isinstance(objects, str):
+            object = objects
+        elif isinstance(objects, list):
+            object = objects[0]
         if len(detections) > 0:
             obj_bb = detections[0]
             x_cent = (obj_bb.xmaxn - obj_bb.xminn)/2 + obj_bb.xminn
@@ -124,10 +128,11 @@ def main():
      # Set up ROS 2 logs
     set_ros_loggers()
 
-    # Create a finite state machine (FSM)zzz
+    # Create a finite state machine (FSM)
     sm = StateMachine(outcomes=["success", "failed"])
 
-    sm.add_state(
+    single_guest_routine_sm = StateMachine(outcomes=["success", "failed"])
+    '''single_guest_routine_sm.add_state(
         "SET_INIT_POSE",
         SetInitialPose(node, 0.0, 0.0, 0.0),
         transitions={
@@ -136,27 +141,37 @@ def main():
         }
     )
 
-    # sm.add_state(
-    #     "WAIT_DOOR",
-    #     WaitDoorOpenState(),
-    #     transitions={
-    #         SUCCEED: "COME_IN",
-    #         CANCEL: "WAIT_DOOR",
-    #         ABORT: "failed"
-    #     }
-    # )
+    single_guest_routine_sm.add_state(
+        "WAIT_DOOR",
+        WaitDoorOpenState(),
+        transitions={
+            SUCCEED: "COME_IN",
+            CANCEL: "WAIT_DOOR",
+            ABORT: "failed"
+        }
+    )'''
 
-    sm.add_state(
+    single_guest_routine_sm.add_state(
         "COME_IN",
         CoquiTTSState(),
         transitions={
-            SUCCEED: "GREET",
+            SUCCEED: "FIND_OPERATOR_AT_DOOR",
             CANCEL: "failed",
         },
         remappings = {"tts_text" : "come_in"}   
     )
 
-    sm.add_state(
+    single_guest_routine_sm.add_state(
+        "FIND_OPERATOR_AT_DOOR",
+        FindObjectState(remappings={"objects": "person", "detections": "bboxes2"}),
+        transitions={
+            SUCCEED: "GREET",
+            CANCEL: "FIND_OPERATOR_AT_DOOR",
+            ABORT: "failed",
+        }
+    )
+
+    single_guest_routine_sm.add_state(
         "GREET",
         CoquiTTSState(),
         transitions={
@@ -166,18 +181,35 @@ def main():
         remappings = {"tts_text" : "greet"}   
     )
 
-    sm.add_state(
+    single_guest_routine_sm.add_state(
         "ASK_NAME",
-        generate_ask_name_sm("ask_name"),
+        generate_ask_name_sm(),
         transitions={
-            SUCCEED: "NEW_FACE",
+            SUCCEED: "CONFIRM_NAME",
             CANCEL: "failed",
         },
         remappings = {"tts_text" : "ask_name"}
     )
 
+    single_guest_routine_sm.add_state(
+        "CONFIRM_NAME",
+        CoquiTTSState(),
+        transitions={
+            SUCCEED: "NEW_FACE_SM",
+            CANCEL: "failed",
+        },
+    )
 
-    sm.add_state(
+    single_guest_routine_sm.add_state(
+        "NEW_FACE_SM",
+        generate_new_face_sm(),
+        transitions={
+            SUCCEED: "ASK_DRINK",
+            CANCEL: "failed",
+        },           
+    )
+
+    '''single_guest_routine_sm.add_state(
         "NEW_FACE",
         NewFaceState(),
         transitions={
@@ -185,24 +217,33 @@ def main():
             CANCEL: "failed",
             ABORT: "failed",
         },
-        remappings={"operator" : "nlu_data"}
-    )
+        remappings={"operator" : "name"}
+    )'''
 
-    sm.add_state(
+    single_guest_routine_sm.add_state(
         "ASK_DRINK",
-        generate_ask_drink_sm("ask_drink"),
+        generate_ask_drink_sm(),
         transitions={
-            SUCCEED: "ASK_FOLLOW",
+            SUCCEED: "CONFIRM_DRINK",
             CANCEL: "failed",
         },
         remappings = {"tts_text" : "ask_drink"}
     )
 
-    sm.add_state(
+    single_guest_routine_sm.add_state(
+        "CONFIRM_DRINK",
+        CoquiTTSState(),
+        transitions={
+            SUCCEED: "ASK_FOLLOW",
+            CANCEL: "failed",
+        },
+    )
+
+    single_guest_routine_sm.add_state(
         "ASK_FOLLOW",
         CoquiTTSState(),
         transitions={
-            SUCCEED: "GO_TO_ROOM",
+            SUCCEED: "FIND_BEVERAGE",
             CANCEL: "failed",
         },
         remappings = {"tts_text" : "ask_follow"}
@@ -210,37 +251,28 @@ def main():
 
 # Find beverage in the beverage area
 
-    sm.add_state(
+    '''single_guest_routine_sm.add_state(
         "GO_TO_ROOM",
         GoToWaypointState(),
         transitions={
-            SUCCEED: "GET_CURRENT_POSE",
+            SUCCEED: "ROTATE_IN_BEVERAGE",
             ABORT: "failed"
         },
         remappings={"waypoint_nametag" : "room"}
     )
 
-    sm.add_state(
-        "GET_CURRENT_POSE",
-        GetCurrentPoseState(),
-        transitions={
-            SUCCEED: "ROTATE",
-            ABORT: "failed"
-        },
-    )
-    sm.add_state(
-        "ROTATE",
-        RotateInPlaceState(node),
+    single_guest_routine_sm.add_state(
+        "ROTATE_IN_BEVERAGE",
+        generate_rotate_in_place(node),
         transitions={
             SUCCEED: "FIND_BEVERAGE",
-            CANCEL: "failed",
-            ABORT: "failed",
+            ABORT: "failed"
         },
-    )
+    )'''
 
-    sm.add_state(
+    single_guest_routine_sm.add_state(
         "FIND_BEVERAGE",
-        FindObjectState(remappings={"object": "beverage"}),
+        FindObjectState(remappings={"objects": "drink"}),
         transitions={
             SUCCEED: "POINT_TO_BEVERAGE",
             CANCEL: "POINT_TO_BEVERAGE",
@@ -248,17 +280,17 @@ def main():
         }
     )
 
-    sm.add_state(
+    single_guest_routine_sm.add_state(
         "POINT_TO_BEVERAGE",
         PointToObjectState(),
         transitions={
             SUCCEED: "DRINK_POSITION_TTS",
             CANCEL: "DRINK_POSITION_TTS"
         },
-        remappings = {"object" : "beverage"}
+        remappings = {"objects" : "drink"}
     )
 
-    sm.add_state(
+    single_guest_routine_sm.add_state(
         "DRINK_POSITION_TTS",
         CoquiTTSState(),
         transitions={
@@ -267,11 +299,11 @@ def main():
         }
     )
 
-    sm.add_state(
+    single_guest_routine_sm.add_state(
         "ASK_FOLLOW_LIVING_ROOM",
         CoquiTTSState(),
         transitions={
-            SUCCEED: "GO_TO_LIVING_ROOM",
+            SUCCEED: "FIND_PEOPLE",
             CANCEL: "failed",
         },
         remappings = {"tts_text" : "ask_follow"}
@@ -279,37 +311,28 @@ def main():
 
 # Find seat in the living room
 
-    sm.add_state(
+    '''single_guest_routine_sm.add_state(
         "GO_TO_LIVING_ROOM",
         GoToWaypointState(),
         transitions={
-            SUCCEED: "GET_CURRENT_POSE2",
+            SUCCEED: "ROTATE_IN_SEATING",
             ABORT: "failed"
         },
         remappings={"waypoint_nametag" : "living_room"}
     )
 
-    sm.add_state(
-        "GET_CURRENT_POSE2",
-        GetCurrentPoseState(),
+    single_guest_routine_sm.add_state(
+        "ROTATE_IN_SEATING",
+        generate_rotate_in_place(node),
         transitions={
-            SUCCEED: "ROTATE2",
+            SUCCEED: "FIND_PEOPLE",
             ABORT: "failed"
         },
-    )
-    sm.add_state(
-        "ROTATE2",
-        RotateInPlaceState(node),
-        transitions={
-            SUCCEED: "FIND_SEAT",
-            CANCEL: "failed",
-            ABORT: "failed",
-        },
-    )
+    )'''
 
-    sm.add_state(
+    single_guest_routine_sm.add_state(
         "FIND_PEOPLE",
-        FindObjectState(remappings={"object": "person", "detections": "bboxes2"}),
+        FindObjectState(remappings={"objects": "person", "detections": "bboxes2"}),
         transitions={
             SUCCEED: "FIND_SEAT",
             CANCEL: "FIND_SEAT",
@@ -317,17 +340,18 @@ def main():
         }
     )
 
-    sm.add_state(
+    single_guest_routine_sm.add_state(
         "FIND_SEAT",
-        FindObjectState(remappings={"object": "seat", "detections": "bboxes1"}),
+        FindObjectState(remappings={"objects": "seat", "detections": "bboxes1"}),
         transitions={
             SUCCEED: "FIND_BEST_SEAT",
-            CANCEL: "GET_CURRENT_POSE2",
+            #CANCEL: "ROTATE_IN_SEATING",
+            CANCEL:"FIND_BEST_SEAT",
             ABORT: "failed"
         }
     )
 
-    sm.add_state(
+    single_guest_routine_sm.add_state(
         "FIND_BEST_SEAT",
         CalculateIOUsState(),
         transitions={
@@ -337,17 +361,17 @@ def main():
         remappings = {"object_bbox" : "object_bbox"},
     )
 
-    sm.add_state(
+    single_guest_routine_sm.add_state(
         "POINT_TO_SEAT",
         PointToObjectState(),
         transitions={
             SUCCEED: "TTS_STATE",
             CANCEL: "failed",
         },
-        remappings = {"object" : "seat", "detections" : "object_bbox"}
+        remappings = {"objects" : "seat", "detections" : "object_bbox"}
     )
 
-    sm.add_state(
+    single_guest_routine_sm.add_state(
         "TTS_STATE",
         CoquiTTSState(),
         transitions={
@@ -356,7 +380,16 @@ def main():
         },
     )
 
-    sm.add_state(
+    single_guest_routine_sm.add_state(
+        "RECOGNITION_SM",
+        generate_recognition_sm(),
+        transitions={
+            SUCCEED: "success",
+            CANCEL: "failed",
+        },           
+    )
+
+    '''single_guest_routine_sm.add_state(
         "RECOGNITION",
         RecognitionState(),
         transitions={
@@ -364,6 +397,17 @@ def main():
             CANCEL: "failed",
             ABORT: "failed",
         },
+    )'''
+
+    sm = StateMachine(outcomes=["success", "failed"])
+
+    sm.add_state(
+        "GUEST_ROUTINE",
+        single_guest_routine_sm,
+        transitions={
+            "success":"GUEST_ROUTINE",
+            "failed":"failed"
+        }            
     )
 
     # Publish FSM information
@@ -377,7 +421,7 @@ def main():
     blackboard["beverage"] = "bottle"
     blackboard["seat"] = "chair"
     blackboard["person"] = "person"
-    blackboard["rotate"] = -45
+    blackboard["rotate"] = 45
     blackboard['yaml_path'] = '/home/laser/ros2_ws/src/utbots_navigation/utbots_nav/map/pitaco_waypoints.yaml'
     blackboard['waypoint_room'] = 'room'
 
@@ -394,6 +438,7 @@ def main():
     blackboard["ask_follow"] = "Please follow me."
     blackboard["tts_text"] = "come_in."
     blackboard["name"]= None
+    blackboard["drink"]=None
     try:
         outcome = sm(blackboard)
         yasmin.YASMIN_LOG_INFO(outcome)
