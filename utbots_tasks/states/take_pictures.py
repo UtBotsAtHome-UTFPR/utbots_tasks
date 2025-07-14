@@ -33,12 +33,13 @@ class TakePicturesState(MonitorState):
         qos = QoSProfile(depth=10)
 
         super().__init__(
+            msg_type=Image,
             topic_name=topic,
-            outcomes={'waiting', 'saved', 'abort'},
+            outcomes=['waiting', 'saved', 'abort'],
             monitor_handler=self.monitor_handler,
             qos=qos,
             msg_queue=10,
-            timeout=-1
+            #timeout=-1
         )
         self.node = node
 

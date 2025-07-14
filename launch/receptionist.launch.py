@@ -19,6 +19,9 @@ def generate_launch_description():
     stt_launch_dir = os.path.join(
         get_package_share_directory('vad_ros'), 'launch')
     
+    realsense_launch_path = os.path.join(
+        get_package_share_directory('realsense2_camera'), 'launch')
+    
     verbose = LaunchConfiguration('verbose',default="false")
 
     return LaunchDescription([
@@ -45,6 +48,11 @@ def generate_launch_description():
                 'verbose': verbose,
                 'whisper_sync_start':'false',
                 }.items() 
+        ),
+
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(os.path.join(realsense_launch_path, 'rs_launch.py')),
+            #launch_arguments={}
         ),
 
         # Launch yolov8_ros yolo_node
