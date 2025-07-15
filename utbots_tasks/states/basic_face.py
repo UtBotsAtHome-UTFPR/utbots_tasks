@@ -3,6 +3,7 @@ import rclpy
 import yasmin
 from yasmin import CbState, Blackboard, StateMachine
 from yasmin_ros import ActionState, ServiceState
+from yasmin import State
 from yasmin_ros import set_ros_loggers
 from yasmin_ros.basic_outcomes import SUCCEED, ABORT, CANCEL
 from yasmin_viewer import YasminViewerPub
@@ -10,6 +11,7 @@ from utbots_actions.action import NewFace, Recognition
 
 from std_srvs.srv import SetBool
 
+from math import pow, sqrt, sin, tan, radians, degrees
 
 '''HOW TO USE, PLEASE READ
 
@@ -21,7 +23,87 @@ If you need to change between testing just the state or the hierarquical state m
 
 '''
 
+class IdentifyYAW(State):
+    def __init__(self) -> None:
+        super().__init__([SUCCEED, CANCEL])
 
+    def execute(self, blackboard: Blackboard) -> str:
+        if len(blackboard["people"]) == 0:
+            return CANCEL # No one in image
+        
+        # Read people direction list (if not exist create) if person does not have yaw set it up
+        if "people_yaw" not in blackboard:
+            blackboard["people_yaw"] = []
+
+        people = blackboard["people"]
+
+        width  = 1280
+        height = 1.0
+        theta_max = 78/2
+
+        for person in people:
+            if person.id == "Unknown":
+                continue
+            print(person.id)
+
+            x = int((person.xmin + person.xmax) / 2)
+            #y = int((person.ymin + person.ymax) / 2)
+            print(x)
+
+            x = x - int(width/2.0)
+            theta = radians(theta_max * x / (width/2))
+
+            angle = degrees(theta)
+            print(degrees(theta), end = "\n\n\n\n")
+            # Convert spherical radius from mm to meters
+            #rho = distance / 1000.0
+
+            # Assume phi = 0 → y = 0 → sin(phi) = 0 → vertical displacement ignored
+            # So y = 0, and the radius is entirely in the xz-plane
+
+            # Calculate x and z using theta only
+            #x_coord = rho * sin(theta)
+
+        return SUCCEED
+'''
+    def Get3dPointFromDepthPixel(self, pixel, distance):
+        # The height and width are already scaled to 0-1 both by Mediapipe
+        width  = 1.0
+        height = 1.0
+
+        # Centralize the camera reference at (0,0,0)
+        ## (x,y,z) are respectively horizontal, vertical and depth
+        ## Theta is the angle of the point with z axis in the zx plane
+        ## Phi is the angle of the point with z axis in the zy plane
+        ## x_max is the distance of the side border from the camera
+        ## y_max is the distance of the upper border from the camera
+        theta_max = self.camFov_horizontal/2 
+        phi_max = self.camFov_vertical/2
+        x_max = width/2.0
+        y_max = height/2.0
+        x = pixel.x - x_max
+        y = pixel.y - y_max
+
+        # Caculate point theta and phi
+        theta = radians(theta_max * x / x_max)
+        phi = radians(phi_max * y / y_max)
+
+        # Convert the spherical radius rho from Kinect's mm to meter
+        rho = distance/1000
+
+        # Calculate x, y and z
+        y = rho * sin(phi)
+        x = sqrt(pow(rho, 2) - pow(y, 2)) * sin(theta)
+        z = x / tan(theta)
+
+        # Change coordinate scheme
+        ## We calculate with (x,y,z) respectively horizontal, vertical and depth
+        ## For the plot in 3d space, we need to remap the coordinates to (z, -x, -y)
+        point_zxy = Point(z, -x, -y)
+
+        return point_zxy'''
+
+        # utbots_msgs.msg.BoundingBox(header=std_msgs.msg.Header(stamp=builtin_interfaces.msg.Time(sec=0, nanosec=0), frame_id=''), probability=0.0, xmin=587, ymin=245, xmax=760, ymax=464, xminn=0.0, yminn=0.0, xmaxn=0.0, ymaxn=0.0, id='Teste', category='Person')
 
 class USBCamOn(ServiceState):
     def __init__(self) -> None:
@@ -306,6 +388,57 @@ def sm_test():
     if rclpy.ok():
         rclpy.shutdown()
 
+def yaw_test():
+    yasmin.YASMIN_LOG_INFO("yasmin_sm_client_demo")
+
+    # Initialize ROS 2
+    rclpy.init()
+
+    # Set up ROS 2 logs
+    set_ros_loggers()
+
+    # Create a finite state machine (FSM)
+    sm = StateMachine(outcomes=[SUCCEED, CANCEL])
+
+    sm.add_state(
+        "RECOGNITION_SM",
+        generate_recognition_sm(),
+        transitions={
+            SUCCEED: "IDENTIFY_YAW",
+            CANCEL: CANCEL,
+        },
+    )
+
+    sm.add_state(
+        "IDENTIFY_YAW",
+        IdentifyYAW(),
+        transitions={
+            SUCCEED: "RECOGNITION_SM",
+            CANCEL: CANCEL,
+        },
+    )
+
+    # Publish FSM information
+    YasminViewerPub("YASMIN_ACTION_CLIENT_DEMO", sm)
+
+    # Create an initial blackboard with the input value
+    blackboard = Blackboard()
+    #blackboard["n"] = 10  # Set the Fibonacci order to 10
+
+    # Execute the FSM
+    try:
+        outcome = sm(blackboard)
+        yasmin.YASMIN_LOG_INFO(outcome)
+    except KeyboardInterrupt:
+        if sm.is_running():
+            sm.cancel_state()  # Cancel the state if interrupted
+
+    # Shutdown ROS 2
+    if rclpy.ok():
+        rclpy.shutdown()
+    
+
 def main():
     #state_test()
-    sm_test()
+    #sm_test()
+    yaw_test()

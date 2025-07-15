@@ -30,7 +30,8 @@ setup(
             'beverage_search = utbots_tasks.tasks.beverage_search:main',
             'voice_nav_smach = utbots_tasks.tasks.voice_nav:main',
             'receptionist = utbots_tasks.tasks.receptionist:main',
-            'take_pictures = utbots_tasks.states.take_pictures:main'
+            'take_pictures = utbots_tasks.states.take_pictures:main',
+            'concurrence = utbots_tasks.states.concurrence_test:main',
         ],
     },
 )

@@ -10,13 +10,15 @@ from cv_bridge import CvBridge
 from yasmin_ros import MonitorState, set_ros_loggers
 from yasmin import StateMachine, Blackboard
 
+import keyboard
+
 # From yasmin_ros docs: MonitorState signature :contentReference[oaicite:1]{index=1}
 # MonitorState(topic_name, outcomes, handler, qos, msg_queue, timeout)
 
 class TakePicturesState(MonitorState):
     def __init__(self, node: Node):
         # Declare and read ROS parameters
-        node.declare_parameter('image_topic', '/image_raw')
+        node.declare_parameter('image_topic', '/camera/camera/color/image_raw')
         node.declare_parameter('image_folder', os.path.expanduser('~/object_captures'))
         node.declare_parameter('delay', 3.0)
 
@@ -48,8 +50,14 @@ class TakePicturesState(MonitorState):
             os.makedirs(self.image_folder, exist_ok=True)
 
             now = time.time()
-            if now - self.last_save < self.delay:
-                return 'waiting'
+            #if now - self.last_save < self.delay:
+            #    return 'waiting'
+
+            print("Press 'enter' to continue...")
+            input()
+            #keyboard.wait('q')  # Waits until the 'q' key is pressed
+            print("You pressed 'q'. Continuing...")
+
 
             cv_img = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
             ts = int(msg.header.stamp.sec * 1e9 + msg.header.stamp.nanosec)
