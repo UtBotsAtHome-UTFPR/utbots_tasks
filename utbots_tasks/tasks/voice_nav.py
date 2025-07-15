@@ -150,7 +150,7 @@ def main():
             PROCESS_NLU[11]: "TALK",
             PROCESS_NLU[12]: "TALK",
             PROCESS_NLU[13]: "TALK",
-            #PROCESS_NLU[14]: "TALK",
+            PROCESS_NLU[14]: "TALK",
         },
     )
 

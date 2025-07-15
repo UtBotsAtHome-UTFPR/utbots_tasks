@@ -9,26 +9,25 @@ from yasmin import State, CbState, Blackboard, StateMachine
 from yasmin_ros import ActionState
 from yasmin_ros import set_ros_loggers
 from yasmin_ros.basic_outcomes import SUCCEED, ABORT, CANCEL
-# from yasmin_viewer import YasminViewerPub
 
-#BLACKBOARD:
-# blackboard["tts_text"]=None
-# blackboard["text"]
-# blackboard["whispered"]
-# blackboard["nlu_input_text"]
-# blackboard["nlu_output"] = (
-#     response.nlu_output
-# )  # Store the result sequence in the blackboard
+class Person():
+    def __init__(self, name=None, drink=None, interested_in=None):
+        self.name = name
+        self.drink = drink
+        self.interested_in = interested_in
+        self.done = False
 
-# blackboard["nlu_intent"] = (
-#     response.task
-# )  # Store the result sequence in the blackboard
+    def get_done(self):
+        return self.done
+    
+    def set_done(self, done):
+        self.done = done
+    
+    def __str__(self):
+        return self.name
 
-# blackboard["nlu_data"] = (
-#     response.data
-# )  # Store the result sequence in the blackboard
-
-# blackboard["waypoint_nametag"]=data
+    def __repr__(self):
+        return f"Person(name={self.name})"
 
 from std_msgs.msg import String
 
@@ -387,10 +386,14 @@ class NLUInference (ActionState):
         blackboard["nlu_data"] = (
             response.data.data
         )  # Store the result sequence in the blackboard
+        blackboard["nlu_chat"] = (
+            response.bot_response.data
+        )  # Store the result sequence in the blackboard
         if(self.verbose):
             yasmin.YASMIN_LOG_INFO(f"NLU Output: {blackboard['nlu_output']}")
             yasmin.YASMIN_LOG_INFO(f"NLU Intent: {blackboard['nlu_intent']}")
             yasmin.YASMIN_LOG_INFO(f"NLU Data: {blackboard['nlu_data']}")
+            yasmin.YASMIN_LOG_INFO(f"NLU Chat Response: {blackboard['nlu_chat']}")
         # # Goal
         # std_msgs/String nlu_input
         # ---
@@ -480,8 +483,14 @@ PROCESS_NLU=[
     "identify_operator",    # 10
     "describe_ambient",     # 11
     "like_drink",           # 12
-    "pick_object",          # 13
-    "default"]             # 14
+    "pick_object",          # 13"
+    "default",              # 14
+    "ask_about_bahia",      # 15
+    "bahia_facts",          # 16  
+    "bahia_geography",      # 17
+    "bahia_climate",        # 18
+    "bahia_economy",        # 19
+    ]             
 
 def get_process_nlu():
     return PROCESS_NLU
@@ -603,100 +612,68 @@ class NLUProcess(CbState):
         blackboard["nlu_data"] = data
         return outcome
 
+class Register(CbState):
+    """
+    Class representing the NLU process.
 
-# def greet_and_name_cb(blackboard: Blackboard) -> str:
-#     """
-#     Retrieves the next waypoint from the list of random waypoints.
+    This class contains methods to handle the NLU process in a finite state machine.
 
-#     Updates the blackboard with the pose of the next waypoint.
+    Attributes:
+        None
+    """
+    def __init__(self, verbose=False, 
+                #  limit=3
+                 ) -> None:
+        """
+        Initializes the NLUInference.
 
-#     Args:
-#         blackboard (Blackboard): The blackboard instance holding current state data.
+        Sets up the action type and the action name for the Whisper
+        action. Initializes goal, response handler, and feedback
+        processing callbacks.
 
-#     Returns:
-#         str: Outcome indicating whether there is a next waypoint (HAS_NEXT) or if
-#              navigation is complete (END).
-#     """
+        Parameters:
+            None
 
-#     try:
-#         name=blackboard["nlu_data"]
-#         blackboard["tts_text"]= f'Is the operators name {name}?Please say Yes, it is or No, it isn t.'
-#         blackboard["name"]= name
-#     except:
-#         blackboard["tts_text"]= "I was not able to understand the operators name. Please say your name again."
+        Returns:
+            None
+        """
+        super().__init__(
+            outcomes=["next_person","failed"], 
+            cb=self.register_person_cb
+        )
+        self.verbose = verbose
 
-#     return "to_tts"#pass to NLU
+    def register_person_cb(self,blackboard: Blackboard) -> str:
+        """
+        Retrieves the next waypoint from the list of random waypoints.
 
-# def greet_and_name_cb(blackboard: Blackboard) -> str:
-#     """
-#     Retrieves the next waypoint from the list of random waypoints.
+        Updates the blackboard with the pose of the next waypoint.
 
-#     Updates the blackboard with the pose of the next waypoint.
+        Args:
+            blackboard (Blackboard): The blackboard instance holding current state data.
 
-#     Args:
-#         blackboard (Blackboard): The blackboard instance holding current state data.
+        Returns:
+            str: Outcome indicating whether there is a next waypoint (HAS_NEXT) or if
+                navigation is complete (END).
+        """
 
-#     Returns:
-#         str: Outcome indicating whether there is a next waypoint (HAS_NEXT) or if
-#              navigation is complete (END).
-#     """
+        try:
+            new_person = {
+                "name": blackboard["name"],
+                "drink": blackboard["drink"],
+                "interested_in": blackboard["interested_in"]
+            }
 
-#     try:
-#         name=blackboard["nlu_data"]
-#         blackboard["tts_text"]= f'Is the operators name {name}?Please say Yes, it is or No, it isn t.'
-#         blackboard["name"]= name
-#     except:
-#         blackboard["tts_text"]= "I was not able to understand the operators name. Please say your name again."
+            blackboard["person_list"].append(new_person)
+            if(self.verbose):
+                yasmin.YASMIN_LOG_INFO(f"New person registered: {new_person}")
+            outcome="next_person"
+        except:
+            if(self.verbose):
+                yasmin.YASMIN_LOG_INFO("Failed to register new person.")
+            outcome="failed"
+        return outcome
 
-#     return "to_tts"#pass to NLU
-
-
-# version: "3.1"
-
-# nlu:
-# - intent: greet
-#.
-# - intent: introduce_robot
-#.
-# - intent: affirm
-#.
-
-# - intent: deny
-#.
-# - intent: mood_great
-#.
-# - intent: mood_unhappy
-#.
-# - intent: follow
-#.
-# - intent: stop
-#.
-# - intent: go_to
-#   examples: |
-#     - go to the [kitchen](room)
-#     - navigate to the [living room](room)
-#     - navigate to the [bedroom](room)
-#     - navigate to the [office](room)
-#.
-# - intent: identify_operator
-#.
-# - intent: say_operator_name
-#   examples: |
-#     - My name is [James](person) 
-#.
-#     -I am [James](person) 
-#.
-#     - [James](person) 
-#.
-#     - My name is [Mary](person)
-#.
-#     -I am [Mary](person)
-#.
-#     - [Mary](person)
-#.
-
-# - intent: describe_ambient
-#.
 
 def generate_ask_name_sm():
     ask_name_sm = StateMachine(outcomes=[SUCCEED, CANCEL, ABORT])
@@ -953,3 +930,68 @@ def generate_ask_drink_sm():
         },
     )
     return ask_drink_sm
+
+
+def ask_interested_in_sm():
+    ask_interested_in_sm = StateMachine(outcomes=[SUCCEED, CANCEL, ABORT])
+    ask_interested_in_sm.add_state(
+        "ASK_SOMETHING",
+        CoquiTTSState(),
+        transitions={
+            SUCCEED: "CALLING_WHISPER",
+            CANCEL: ABORT,
+        },
+        remappings={"tts_text":"ask_interested_in"}
+    )
+
+    ask_interested_in_sm.add_state(
+        "CALLING_WHISPER",
+        WhisperSTTState(),
+        transitions={
+            SUCCEED: "WHISPER_PROCESS",
+            CANCEL: ABORT,
+            ABORT: ABORT,
+        },
+    )
+
+    ask_interested_in_sm.add_state(
+        "WHISPER_PROCESS",
+        CbState(["process_whisper1","process_whisper2","process_whisper3"],whisper_process_cb),
+        transitions={
+            "process_whisper1": "CALLING_WHISPER",
+            "process_whisper2": "NLU_INFERENCE",
+        },
+    )
+
+    ask_interested_in_sm.add_state(
+        "NLU_INFERENCE",
+        NLUInference(),
+        transitions={
+            SUCCEED: "NLU_PROCESS",
+            CANCEL: ABORT,
+            ABORT: ABORT,
+        },
+        remappings={"nlu_input_text": "whispered"},
+    )
+
+    ask_interested_in_sm.add_state(
+        "NLU_PROCESS_VER",
+        NLUProcess(True),  # Set verbose to True for detailed logging     
+        transitions={
+            PROCESS_NLU[0]: "ASK_SOMETHING",
+            PROCESS_NLU[1]: "ASK_SOMETHING",
+            PROCESS_NLU[2]: SUCCEED,
+            PROCESS_NLU[3]: "ASK_SOMETHING",
+            PROCESS_NLU[4]: "ASK_SOMETHING",
+            PROCESS_NLU[5]: "ASK_SOMETHING",
+            PROCESS_NLU[6]: "ASK_SOMETHING",
+            PROCESS_NLU[7]: "ASK_SOMETHING",
+            PROCESS_NLU[8]: "ASK_SOMETHING",
+            PROCESS_NLU[9]: "ASK_SOMETHING",
+            PROCESS_NLU[10]: "ASK_SOMETHING",
+            PROCESS_NLU[11]: "ASK_SOMETHING",
+            PROCESS_NLU[12]: "ASK_SOMETHING",
+        },
+    )
+
+    return ask_interested_in_sm

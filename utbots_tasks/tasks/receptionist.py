@@ -15,9 +15,12 @@ from utbots_tasks.states.basic_nav import GetCurrentPoseState, generate_rotate_i
 
 from utbots_tasks.states.basic_vision import FindObjectState
 
-from utbots_tasks.states.basic_voice import CoquiTTSState, get_process_nlu, generate_ask_name_sm, generate_ask_drink_sm#,greet_and_name_cb, new_face_error_cb
+from utbots_tasks.states.basic_voice import CoquiTTSState, get_process_nlu, generate_ask_name_sm, generate_ask_drink_sm
+from utbots_tasks.states.basic_voice import Register,Person #,greet_and_name_cb, new_face_error_cb
 
 PROCESS_NLU=get_process_nlu()
+
+personList= []
 
 class PointToObjectState(State):
     def __init__(self) -> None:
@@ -239,6 +242,26 @@ def main():
         },
     )
 
+    # single_guest_routine_sm.add_state(
+    #     "ASK_INTERESTED_IN",
+    #     ask_interested_in_sm(),
+    #     transitions={
+    #         SUCCEED: "REGISTER_PERSON",
+    #         CANCEL: "failed",
+    #     },
+    #     remappings = {"tts_text" : "ask_drink"}
+    # )
+
+
+    single_guest_routine_sm.add_state(
+        "REGISTER_PERSON",
+        Register(verbose=True),  # Set verbose to True for detailed logging
+        transitions={
+            SUCCEED: "ASK_FOLLOW",
+            CANCEL: "failed",
+        },
+    )
+
     single_guest_routine_sm.add_state(
         "ASK_FOLLOW",
         CoquiTTSState(),
@@ -311,7 +334,8 @@ def main():
 
 # Find seat in the living room
 
-    '''single_guest_routine_sm.add_state(
+    '''
+    single_guest_routine_sm.add_state(
         "GO_TO_LIVING_ROOM",
         GoToWaypointState(),
         transitions={
@@ -328,7 +352,8 @@ def main():
             SUCCEED: "FIND_PEOPLE",
             ABORT: "failed"
         },
-    )'''
+    )
+    '''
 
     single_guest_routine_sm.add_state(
         "FIND_PEOPLE",
@@ -389,7 +414,8 @@ def main():
         },           
     )
 
-    '''single_guest_routine_sm.add_state(
+    '''
+    single_guest_routine_sm.add_state(
         "RECOGNITION",
         RecognitionState(),
         transitions={
@@ -397,7 +423,8 @@ def main():
             CANCEL: "failed",
             ABORT: "failed",
         },
-    )'''
+    )
+    '''
 
     sm = StateMachine(outcomes=["success", "failed"])
 
@@ -439,6 +466,10 @@ def main():
     blackboard["tts_text"] = "come_in."
     blackboard["name"]= None
     blackboard["drink"]=None
+
+    blackboard["person_list"]=[]
+    blackboard["interested_in"]="robotics"
+
     try:
         outcome = sm(blackboard)
         yasmin.YASMIN_LOG_INFO(outcome)
