@@ -49,10 +49,12 @@ class IdentifyYAW(State):
 
     def execute(self, blackboard: Blackboard) -> str:
         if len(blackboard["people"]) == 0:
+            print("No people for whatever reason")
             return CANCEL # No one in image
         
         # Read people direction list (if not exist create) if person does not have yaw set it up
         if "people_yaw" not in blackboard:
+            print("create positions to state at during conversation")
             blackboard["people_yaw"] = []
         
         people = blackboard["people"]
@@ -61,6 +63,7 @@ class IdentifyYAW(State):
         theta_max = 78/2 # Logitech cam FOV 
 
         for person in people:
+            print(person.category)
             if person.id == "Unknown" or person.id in blackboard["people_yaw"]:
                 continue
 
@@ -399,7 +402,7 @@ def yaw_test():
         "ROTATE_TO_PERSON",
         generate_rotate_in_place(node),
         transitions={
-            SUCCEED: SUCCEED,
+            SUCCEED: "SAVE_POSITION",
             ABORT: CANCEL
         },
     )

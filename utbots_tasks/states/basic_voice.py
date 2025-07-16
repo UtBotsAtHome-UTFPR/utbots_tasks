@@ -483,13 +483,14 @@ PROCESS_NLU=[
     "identify_operator",    # 10
     "describe_ambient",     # 11
     "like_drink",           # 12
-    "pick_object",          # 13"
-    "default",              # 14
-    "ask_about_bahia",      # 15
-    "bahia_facts",          # 16  
-    "bahia_geography",      # 17
-    "bahia_climate",        # 18
-    "bahia_economy",        # 19
+    "pick_object",          # 13
+    "ask_interested_in",    # 14
+    "default",              # 15
+    "ask_about_bahia",      # 16
+    "bahia_facts",          # 17  
+    "bahia_geography",      # 18
+    "bahia_climate",        # 19
+    "bahia_economy",        # 20
     ]             
 
 def get_process_nlu():
@@ -956,7 +957,7 @@ def ask_interested_in_sm():
 
     ask_interested_in_sm.add_state(
         "WHISPER_PROCESS",
-        CbState(["process_whisper1","process_whisper2","process_whisper3"],whisper_process_cb),
+        CbState(["process_whisper1","process_whisper2"],whisper_process_cb),
         transitions={
             "process_whisper1": "CALLING_WHISPER",
             "process_whisper2": "NLU_INFERENCE",
@@ -978,19 +979,27 @@ def ask_interested_in_sm():
         "NLU_PROCESS_VER",
         NLUProcess(True),  # Set verbose to True for detailed logging     
         transitions={
-            PROCESS_NLU[0]: "ASK_SOMETHING",
-            PROCESS_NLU[1]: "ASK_SOMETHING",
-            PROCESS_NLU[2]: SUCCEED,
-            PROCESS_NLU[3]: "ASK_SOMETHING",
-            PROCESS_NLU[4]: "ASK_SOMETHING",
-            PROCESS_NLU[5]: "ASK_SOMETHING",
-            PROCESS_NLU[6]: "ASK_SOMETHING",
-            PROCESS_NLU[7]: "ASK_SOMETHING",
-            PROCESS_NLU[8]: "ASK_SOMETHING",
-            PROCESS_NLU[9]: "ASK_SOMETHING",
-            PROCESS_NLU[10]: "ASK_SOMETHING",
-            PROCESS_NLU[11]: "ASK_SOMETHING",
-            PROCESS_NLU[12]: "ASK_SOMETHING",
+            PROCESS_NLU[0]: "WHISPER_PROCESS",
+            PROCESS_NLU[1]: "WHISPER_PROCESS",
+            PROCESS_NLU[2]: "WHISPER_PROCESS",
+            PROCESS_NLU[3]: "WHISPER_PROCESS",
+            PROCESS_NLU[4]: "WHISPER_PROCESS",
+            PROCESS_NLU[5]: "WHISPER_PROCESS",
+            PROCESS_NLU[6]: "WHISPER_PROCESS",
+            PROCESS_NLU[7]: "WHISPER_PROCESS",
+            PROCESS_NLU[8]: "WHISPER_PROCESS",
+            PROCESS_NLU[9]: "WHISPER_PROCESS",
+            PROCESS_NLU[10]: "WHISPER_PROCESS",
+            PROCESS_NLU[11]: "WHISPER_PROCESS",
+            PROCESS_NLU[12]: "WHISPER_PROCESS",
+            PROCESS_NLU[13]: "WHISPER_PROCESS",
+            PROCESS_NLU[14]: "ASK_SOMETHING",
+            PROCESS_NLU[15]: "WHISPER_PROCESS",
+            PROCESS_NLU[16]: "WHISPER_PROCESS",
+            PROCESS_NLU[17]: "WHISPER_PROCESS",
+            PROCESS_NLU[18]: "WHISPER_PROCESS",
+            PROCESS_NLU[19]: "WHISPER_PROCESS",
+            PROCESS_NLU[20]: "WHISPER_PROCESS",
         },
     )
 

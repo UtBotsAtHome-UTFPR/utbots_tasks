@@ -32,6 +32,7 @@ setup(
             'receptionist = utbots_tasks.tasks.receptionist:main',
             'take_pictures = utbots_tasks.states.take_pictures:main',
             'concurrence = utbots_tasks.states.concurrence_test:main',
+            'inspection = utbots_tasks.tasks.inspection:main'
         ],
     },
 )

@@ -35,26 +35,39 @@ def main():
         "WAIT_DOOR",
         WaitDoorOpenState(),
         transitions={
-            SUCCEED: "GO_TO_WAYPOINT",
+            SUCCEED: "GO_TO_WAYPOINT1",
             CANCEL: "WAIT_DOOR",
             ABORT: "failed"
         }
     )
 
     sm.add_state(
-        "GO_TO_WAYPOINT",
+        "GO_TO_WAYPOINT1",
+        GoToWaypointState(),
+        transitions={
+            SUCCEED: "GO_TO_WAYPOINT2",
+            ABORT: "failed"
+        }
+    )
+
+    sm.add_state(
+        "GO_TO_WAYPOINT2",
         GoToWaypointState(),
         transitions={
             SUCCEED: "success",
             ABORT: "failed"
         },
-        remappings={"waypoint_nametag" : "inspection"}
+        remappings={"waypoint_nametag":"waypoint_exit_door"}
     )
 
     # Publish FSM information
     YasminViewerPub("YASMIN_ACTION_CLIENT_DEMO", sm)
 
     blackboard = Blackboard()
+    blackboard["waypoint_nametag"] = "entrance"
+    blackboard["waypoint_exit_door"] = "inspection"
+    blackboard['yaml_path'] = '/home/laser/ros2_ws/src/utbots_navigation/utbots_nav/map/arena_filled_waypoints.yaml'
+
     try:
         outcome = sm(blackboard)
         yasmin.YASMIN_LOG_INFO(outcome)
