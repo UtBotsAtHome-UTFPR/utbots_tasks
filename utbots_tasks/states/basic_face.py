@@ -69,7 +69,7 @@ class IdentifyYAW(State):
 
             x = int((person.xmin + person.xmax) / 2)
             #y = int((person.ymin + person.ymax) / 2)
-            print(x)
+            #print(x)
 
             x = x - int(width/2.0)
             theta = radians(theta_max * x / (width/2))
@@ -78,9 +78,11 @@ class IdentifyYAW(State):
 
             blackboard["people_yaw"].append(person.id)
             blackboard["rotate"] = angle
+            blackboard["rotation_count"] = 0
+            blackboard["people_count"] += 1
             return SUCCEED
             print(degrees(theta), end = "\n\n\n\n")
-
+        blackboard["rotation_count"] += 45
         return CANCEL
 
 class USBCamOn(ServiceState):
@@ -394,8 +396,20 @@ def yaw_test():
         IdentifyYAW(),
         transitions={
             SUCCEED: "ROTATE_TO_PERSON",
-            CANCEL: CANCEL, # Girar 45º
+            CANCEL: "rotate_45", # Girar 45º
         },
+    )
+
+    sm.add_state(
+        "ROTATE_45",
+        generate_rotate_in_place(node),
+        transitions={
+            SUCCEED: "RECOGNITION_SM",
+            ABORT: CANCEL
+        },
+        remappings={
+            "angle":"45_rotation"
+        }
     )
 
     sm.add_state(
@@ -421,7 +435,10 @@ def yaw_test():
 
     # Create an initial blackboard with the input value
     blackboard = Blackboard()
-    #blackboard["n"] = 10  # Set the Fibonacci order to 10
+
+    blackboard["45_rotation"] = 45
+    blackboard["people_count"] = 0
+    blackboard["rotation_count"] = 0
 
     # Execute the FSM
     try:
