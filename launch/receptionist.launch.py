@@ -56,13 +56,28 @@ def generate_launch_description():
         ),
 
         # Launch yolov8_ros yolo_node
+        # YOLO node for Robot 1
         Node(
             package='yolov8_ros',
             executable='yolo_node',
             name='yolo_node',
+            namespace='yolo_node1',
             output='screen',
             parameters=[{
-                'camera_topic':'/camera/camera/color/image_raw'
+                'camera_topic': '/camera/camera/color/image_raw'
+            }]
+        ),
+
+        # YOLO node for Robot 2
+        Node(
+            package='yolov8_ros',
+            executable='yolo_node',
+            name='yolo_node',
+            namespace='yolo_node2',
+            output='screen',
+            parameters=[{
+                'camera_topic': '/camera/camera/color/image_raw',
+                'weights': '/home/laser/Downloads/best.pt'
             }]
         ),
 
