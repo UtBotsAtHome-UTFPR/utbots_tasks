@@ -34,12 +34,12 @@ class SavePosition(State):
         key = blackboard["people_yaw"][-1]
 
         # Lê quaternion aqui
-        quaternion = blackboard["current_pose"]
+        position = blackboard["current_pose"]
 
         for person in blackboard["person_list"]:
             
             if person["name"] == key:
-                person["quat"] = quaternion
+                person["quat"] = position
 
         return SUCCEED
 
@@ -55,7 +55,7 @@ class IdentifyYAW(State):
         # Read people direction list (if not exist create) if person does not have yaw set it up
         if "people_yaw" not in blackboard:
             print("create positions to state at during conversation")
-            blackboard["people_yaw"] = []
+            blackboard["people_yaw"] = []#["Teste"]
 
         people = blackboard["people"]
 
@@ -90,7 +90,7 @@ class CheckContinuation(State):
         super().__init__([SUCCEED, CANCEL])
 
     def execute(self, blackboard: Blackboard) -> str:
-        if blackboard["people_count"] == 2 or blackboard["rotation_count"] >= 360:
+        if blackboard["people_count"] >= 2 or blackboard["rotation_count"] >= 360:
             return SUCCEED
         return CANCEL
 
@@ -404,8 +404,8 @@ def yaw_test():
         "IDENTIFY_YAW",
         IdentifyYAW(),
         transitions={
-            SUCCEED: "ROTATE_TO_PERSON",
-            CANCEL: "rotate_45", # Girar 45º
+            SUCCEED: "SAVE_POSITION", #"ROTATE_TO_PERSON",
+            CANCEL: "SAVE_POSITION" #"ROTATE_45", # Girar 45º
         },
     )
 

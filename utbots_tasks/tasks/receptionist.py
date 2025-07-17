@@ -9,7 +9,7 @@ from yasmin_ros import set_ros_loggers
 from yasmin_ros.basic_outcomes import SUCCEED, ABORT, CANCEL
 from yasmin_viewer import YasminViewerPub
 
-from utbots_tasks.states.basic_face import RecognitionState, NewFaceState, generate_new_face_sm, generate_recognition_sm
+from utbots_tasks.states.basic_face import RecognitionState, NewFaceState, generate_new_face_sm, generate_recognition_sm, IdentifyYAW, SavePosition, CheckContinuation
 
 from utbots_tasks.states.basic_nav import GetCurrentPoseState, generate_rotate_in_place, GoToWaypointState, WaitDoorOpenState, SetInitialPose
 
@@ -394,20 +394,66 @@ def main():
         "RECOGNITION_SM",
         generate_recognition_sm(),
         transitions={
-            SUCCEED: "success",
+            SUCCEED: "RECOGNITION_SM",
             CANCEL: "failed",
         },           
     )
 
-    sm = StateMachine(outcomes=["success", "failed"])
+    sm.add_state(
+        "RECOGNITION_SM",
+        generate_recognition_sm(),
+        transitions={
+            SUCCEED: "IDENTIFY_YAW",
+            CANCEL: CANCEL,
+        },
+    )
 
     sm.add_state(
-        "GUEST_ROUTINE",
-        single_guest_routine_sm,
+        "IDENTIFY_YAW",
+        IdentifyYAW(),
         transitions={
-            "success":"GUEST_ROUTINE",
-            "failed":"failed"
-        }            
+            SUCCEED: "SAVE_POSITION", #"ROTATE_TO_PERSON",
+            CANCEL: "SAVE_POSITION" #"ROTATE_45", # Girar 45º
+        },
+    )
+
+    sm.add_state(
+        "ROTATE_45",
+        generate_rotate_in_place(node),
+        transitions={
+            SUCCEED: "CHECK_CONTINUATION",
+            ABORT: CANCEL
+        },
+        remappings={
+            "angle":"45_rotation"
+        }
+    )
+
+    sm.add_state(
+        "ROTATE_TO_PERSON",
+        generate_rotate_in_place(node),
+        transitions={
+            SUCCEED: "SAVE_POSITION",
+            ABORT: CANCEL
+        },
+    )
+
+    sm.add_state(
+        "SAVE_POSITION",
+        SavePosition(),
+        transitions={
+            SUCCEED: "CHECK_CONTINUATION",
+            CANCEL: CANCEL
+        },
+    )
+    
+    sm.add_state(
+        "CHECK_CONTINUATION",
+        CheckContinuation(),
+        transitions={
+            SUCCEED: "RECOGNITION_SM",
+            CANCEL: CANCEL # Do tasks
+        },
     )
 
     # Publish FSM information
@@ -442,6 +488,10 @@ def main():
 
     blackboard["person_list"]=[]
     blackboard["interested_in"]="robotics"
+
+    blackboard["45_rotation"] = 45
+    blackboard["people_count"] = 0
+    blackboard["rotation_count"] = 0
 
     try:
         outcome = sm(blackboard)
