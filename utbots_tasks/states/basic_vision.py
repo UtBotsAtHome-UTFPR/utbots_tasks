@@ -7,10 +7,10 @@ from std_msgs.msg import String, Int32, Float32
 from utbots_msgs.msg import BoundingBoxes
 
 class FindObjectState(ActionState):
-    def __init__(self, remappings: dict = None) -> None:
+    def __init__(self, remappings: dict = None, action_server="YOLO_batch_detection") ->None:
         super().__init__(
             YOLOBatchDetection,
-            "YOLO_batch_detection",
+            action_server,
             self.create_goal_handler,
             None,
             self.response_handler,
