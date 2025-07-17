@@ -56,7 +56,7 @@ class IdentifyYAW(State):
         if "people_yaw" not in blackboard:
             print("create positions to state at during conversation")
             blackboard["people_yaw"] = []
-        
+
         people = blackboard["people"]
 
         width  = 1280 # CHANGE TO 1920
@@ -83,6 +83,15 @@ class IdentifyYAW(State):
             return SUCCEED
             print(degrees(theta), end = "\n\n\n\n")
         blackboard["rotation_count"] += 45
+        return CANCEL
+
+class CheckContinuation(State):
+    def __init__(self) -> None:
+        super().__init__([SUCCEED, CANCEL])
+
+    def execute(self, blackboard: Blackboard) -> str:
+        if blackboard["people_count"] == 2 or blackboard["rotation_count"] >= 360:
+            return SUCCEED
         return CANCEL
 
 class USBCamOn(ServiceState):
@@ -404,7 +413,7 @@ def yaw_test():
         "ROTATE_45",
         generate_rotate_in_place(node),
         transitions={
-            SUCCEED: "RECOGNITION_SM",
+            SUCCEED: "CHECK_CONTINUATION",
             ABORT: CANCEL
         },
         remappings={
@@ -425,7 +434,16 @@ def yaw_test():
         "SAVE_POSITION",
         SavePosition(),
         transitions={
-            SUCCEED: SUCCEED,
+            SUCCEED: "CHECK_CONTINUATION",
+            CANCEL: CANCEL
+        },
+    )
+    
+    sm.add_state(
+        "CHECK_CONTINUATION",
+        CheckContinuation(),
+        transitions={
+            SUCCEED: "RECOGNITION_SM",
             CANCEL: CANCEL
         },
     )
@@ -451,7 +469,7 @@ def yaw_test():
     # Shutdown ROS 2
     if rclpy.ok():
         rclpy.shutdown()
-    
+
 
 def main():
     #state_test()
