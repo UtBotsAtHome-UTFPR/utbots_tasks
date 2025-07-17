@@ -102,8 +102,8 @@ def generate_launch_description():
             emulate_tty=True,
             parameters=[
                 {
-                    'model_path':
-                    '/home/laser/ros2_ws/src/utbots_nlu/rasa/models/20250716-120427-brass-queue.tar.gz',
+                    # 'model_path':
+                    # '/home/laser/ros2_ws/src/utbots_nlu/rasa/models/20250716-120427-brass-queue.tar.gz',
                   }
             ]
         ),
