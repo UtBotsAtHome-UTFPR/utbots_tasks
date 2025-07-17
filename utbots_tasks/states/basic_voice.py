@@ -5,6 +5,7 @@ from utbots_actions.action import TextToSpeech, Transcription, InterpretNLU
 import yasmin
 import rclpy
 import yasmin
+import json
 from yasmin import State, CbState, Blackboard, StateMachine
 from yasmin_ros import ActionState
 from yasmin_ros import set_ros_loggers
@@ -125,27 +126,6 @@ class WhisperSTTState(ActionState):
         print(blackboard["whispered"])
         return SUCCEED
 
-    # def print_feedback(
-    #     self, blackboard: Blackboard, feedback: Whisper.Feedback
-    # ) -> None:
-    #     """
-    #     Prints feedback from the Whisper action.
-
-    #     This method logs the partial sequence received during the action.
-
-    #     Parameters:
-    #         blackboard (Blackboard): The blackboard (not used in this method).
-    #         feedback (Whisper.Feedback): The feedback object from the Whisper action.
-
-    #     Returns:
-    #         None
-
-    #     Raises:
-    #         None
-    #     """
-    #     yasmin.YASMIN_LOG_INFO(f"Received feedback: {list(feedback.sequence)}")
-
-
 def whisper_print_result(blackboard: Blackboard) -> str:
     """
     Prints the result of the Whisper action.
@@ -242,30 +222,7 @@ class CoquiTTSState(ActionState):
         Raises:
             None
         """
-        # blackboard["whispered"] = (
-        #     response.text
-        # )  # Store the result sequence in the blackboard
         return SUCCEED
-
-    # def print_feedback(
-    #     self, blackboard: Blackboard, feedback: Whisper.Feedback
-    # ) -> None:
-    #     """
-    #     Prints feedback from the Whisper action.
-
-    #     This method logs the partial sequence received during the action.
-
-    #     Parameters:
-    #         blackboard (Blackboard): The blackboard (not used in this method).
-    #         feedback (Whisper.Feedback): The feedback object from the Whisper action.
-
-    #     Returns:
-    #         None
-
-    #     Raises:
-    #         None
-    #     """
-    #     yasmin.YASMIN_LOG_INFO(f"Received feedback: {list(feedback.sequence)}")
 
 
 def coqui_print_result(blackboard: Blackboard) -> str:
@@ -366,15 +323,6 @@ class NLUInference (ActionState):
         Raises:
             None
         """
-
-        # result.nlu_output.data = json.dumps(rasa_output) # Keep the full output if needed for debugging
-        # result.task.data = intent
-        # result.data.data = json.dumps(entities_list)
-
-        # blackboard["nlu_intent"] = (
-        #     response.text
-        # )  # Store the result sequence in the blackboard
-
         blackboard["nlu_output"] = (
             response.nlu_output.data
         )  # Store the result sequence in the blackboard
@@ -394,39 +342,7 @@ class NLUInference (ActionState):
             yasmin.YASMIN_LOG_INFO(f"NLU Intent: {blackboard['nlu_intent']}")
             yasmin.YASMIN_LOG_INFO(f"NLU Data: {blackboard['nlu_data']}")
             yasmin.YASMIN_LOG_INFO(f"NLU Chat Response: {blackboard['nlu_chat']}")
-        # # Goal
-        # std_msgs/String nlu_input
-        # ---
-        # # Result
-        # std_msgs/String nlu_input
-        # std_msgs/String nlu_output
-        # std_msgs/String task
-        # std_msgs/String data
-        # ---
-        # # Feedback
-
         return SUCCEED
-
-    # def print_feedback(
-    #     self, blackboard: Blackboard, feedback: Whisper.Feedback
-    # ) -> None:
-    #     """
-    #     Prints feedback from the Whisper action.
-
-    #     This method logs the partial sequence received during the action.
-
-    #     Parameters:
-    #         blackboard (Blackboard): The blackboard (not used in this method).
-    #         feedback (Whisper.Feedback): The feedback object from the Whisper action.
-
-    #     Returns:
-    #         None
-
-    #     Raises:
-    #         None
-    #     """
-    #     yasmin.YASMIN_LOG_INFO(f"Received feedback: {list(feedback.sequence)}")
-
 
     def print_result(blackboard: Blackboard) -> str:
         """
@@ -528,6 +444,43 @@ class NLUProcess(CbState):
 
         self.verbose = verbose
 
+    def _parse_entities(self, entities_json_string):
+        """Parse entities from JSON string."""
+        try:
+            entities = json.loads(entities_json_string)
+            return entities if isinstance(entities, list) else []
+        except (json.JSONDecodeError, TypeError, AttributeError):
+            if self.verbose:
+                print(f"Failed to parse entities JSON: {entities_json_string}")
+            return []
+    
+    def _get_first_entity_value(self, entities):
+        """Get the value of the first entity (for backward compatibility)."""
+        if entities and len(entities) > 0:
+            return entities[0].get('value')
+        return None
+    
+    def _get_entity_values_by_type(self, entities, entity_type):
+        """Get all entity values of a specific type."""
+        return [entity.get('value') for entity in entities 
+                if entity.get('entity') == entity_type and entity.get('value')]
+    
+    def _get_highest_confidence_entity_value(self, entities, entity_type=None):
+        """Get the value of the entity with the highest confidence score."""
+        filtered_entities = entities
+        if entity_type:
+            filtered_entities = [e for e in entities if e.get('entity') == entity_type]
+        
+        if not filtered_entities:
+            return None
+            
+        best_entity = max(filtered_entities, key=lambda x: x.get('confidence_entity', 0))
+        return best_entity.get('value')
+    
+    def _get_entities_by_type(self, entities, entity_type):
+        """Get all entities of a specific type (full entity objects)."""
+        return [entity for entity in entities if entity.get('entity') == entity_type]
+
     def nlu_process_cb(self,blackboard: Blackboard) -> str:
         """
         Retrieves the next waypoint from the list of random waypoints.
@@ -543,13 +496,37 @@ class NLUProcess(CbState):
         """
 
         task=blackboard["nlu_intent"]
-        try:
-            data=blackboard["nlu_data"].rsplit("\"value\":")[1].rsplit(",")[0].replace('"', '').strip()
-        except:
-            data=None
+        
+        # Parse entities from JSON string
+        entities = self._parse_entities(blackboard["nlu_data"])
+        
+        # Extract specific entity values
+        data = self._get_first_entity_value(entities)
+        topics = self._get_entity_values_by_type(entities, "topic")
+        names = self._get_entity_values_by_type(entities, "name")
+        drinks = self._get_entity_values_by_type(entities, "drink")
+        locations = self._get_entity_values_by_type(entities, "location")
+
+        # Store all entities in blackboard for later use
+        blackboard["nlu_entities"] = entities
+        blackboard["nlu_topics"] = topics
+        blackboard["nlu_names"] = names
+        blackboard["nlu_drinks"] = drinks
+        blackboard["nlu_locations"] = locations
+        
         answer=None
-        name=data
-        ambient=data
+        # Use the parsed entities more effectively
+        name = names[0] if names else data  # Use first name entity or fallback to data
+        drink = drinks[0] if drinks else data  # Use first drink entity or fallback to data
+        location = locations[0] if locations else data  # Use first location entity or fallback to data
+        topic = topics[0] if topics else data  # Use first topic entity or fallback to data
+        
+        # For cases where you need to handle multiple topics
+        if topics and len(topics) > 1:
+            topics_str = ", ".join(topics[:-1]) + " and " + topics[-1]
+        else:
+            topics_str = topic
+        
         outcome=None
         match task:
             case "greet":
@@ -578,8 +555,8 @@ class NLUProcess(CbState):
                 answer="I was asked to stop! Stopping."
                 outcome="stop"
             case "go_to":
-                answer=f"I was asked to go to the {data}!Navigation starting."
-                blackboard["waypoint_nametag"]=data
+                answer=f"I was asked to go to the {location}!Navigation starting."
+                blackboard["waypoint_nametag"]=location
                 outcome="go_to"
             case "say_operator_name":
                 # answer=f"I was asked to say the operators name!The name is {name}."
@@ -592,15 +569,34 @@ class NLUProcess(CbState):
                 blackboard["name"]= name           
                 outcome="identify_operator"
             case "describe_ambient":
-                answer=f"I was asked to describe the ambient {ambient}!"
+                answer=f"I was asked to describe the ambient {location}!"
                 outcome="describe_ambient"
             case "like_drink":
-                answer=f"The operator likes {data}, does he?Please deny or affirm the sentence."
+                answer=f"The operator likes {drink}, does he?Please deny or affirm the sentence."
                 outcome="describe_ambient"
-                blackboard["drink"]= data 
+                blackboard["drink"]= drink 
             case "pick_object":
                 answer=f"I was asked to pick {data}!Please deny or confirm the request."
                 outcome="describe_ambient"
+            case "ask_about_bahia":
+                answer="You asked about Bahia. What would you like to know?"
+                outcome="ask_about_bahia"
+            case "bahia_facts":
+                answer=f"Here are some facts about Bahia!"
+                outcome="bahia_facts"
+            case "bahia_geography":
+                answer=f"Bahia is located in northeastern Brazil..."
+                outcome="bahia_geography"
+            case "bahia_climate":
+                answer=f"Bahia has a tropical climate..."
+                outcome="bahia_climate"
+            case "bahia_economy":
+                answer=f"Bahia's economy is based on..."
+                outcome="bahia_economy"
+            case "ask_interested_in":
+                answer=blackboard["nlu_chat"]
+                blackboard["interested_in"]=topics_str
+                outcome="ask_interested_in"
             case _:  # Default case
                 answer="Hello, my name is hestia!I wasn't able to understand what you said to me!"
                 outcome="default"
@@ -608,6 +604,11 @@ class NLUProcess(CbState):
         if(self.verbose):
             yasmin.YASMIN_LOG_INFO(f"NLU Intent: {task}")
             yasmin.YASMIN_LOG_INFO(f"NLU Data: {data}")
+            yasmin.YASMIN_LOG_INFO(f"Entities: {entities}")
+            yasmin.YASMIN_LOG_INFO(f"Names: {names}")
+            yasmin.YASMIN_LOG_INFO(f"Drinks: {drinks}")
+            yasmin.YASMIN_LOG_INFO(f"Locations: {locations}")
+            yasmin.YASMIN_LOG_INFO(f"Topics: {topics}")
             yasmin.YASMIN_LOG_INFO(f"Answer: {answer}")
             yasmin.YASMIN_LOG_INFO(f"Outcome: {outcome}")
         blackboard["nlu_data"] = data
@@ -622,7 +623,8 @@ class Register(CbState):
     Attributes:
         None
     """
-    def __init__(self, verbose=False, 
+    def __init__(self, 
+                 verbose=False, 
                 #  limit=3
                  ) -> None:
         """
@@ -639,7 +641,7 @@ class Register(CbState):
             None
         """
         super().__init__(
-            outcomes=["next_person","failed"], 
+            outcomes=[SUCCEED,CANCEL], 
             cb=self.register_person_cb
         )
         self.verbose = verbose
@@ -666,13 +668,16 @@ class Register(CbState):
             }
 
             blackboard["person_list"].append(new_person)
+
             if(self.verbose):
                 yasmin.YASMIN_LOG_INFO(f"New person registered: {new_person}")
-            outcome="next_person"
+            outcome=SUCCEED
+
         except:
             if(self.verbose):
                 yasmin.YASMIN_LOG_INFO("Failed to register new person.")
-            outcome="failed"
+            outcome=CANCEL
+        
         return outcome
 
 
@@ -739,6 +744,11 @@ def generate_ask_name_sm():
             PROCESS_NLU[12]: "ASK_SOMETHING",
             PROCESS_NLU[13]: "ASK_SOMETHING",
             PROCESS_NLU[14]: "ASK_SOMETHING",
+            PROCESS_NLU[15]: "ASK_SOMETHING",
+            PROCESS_NLU[16]: "ASK_SOMETHING",
+            PROCESS_NLU[17]: "ASK_SOMETHING",
+            PROCESS_NLU[18]: "ASK_SOMETHING",
+            PROCESS_NLU[19]: "ASK_SOMETHING",
         },
     )
 
@@ -802,6 +812,11 @@ def generate_ask_name_sm():
             PROCESS_NLU[12]: "ASK_SOMETHING",
             PROCESS_NLU[13]: "ASK_SOMETHING",
             PROCESS_NLU[14]: "ASK_SOMETHING",
+            PROCESS_NLU[15]: "ASK_SOMETHING",
+            PROCESS_NLU[16]: "ASK_SOMETHING",
+            PROCESS_NLU[17]: "ASK_SOMETHING",
+            PROCESS_NLU[18]: "ASK_SOMETHING",
+            PROCESS_NLU[19]: "ASK_SOMETHING",
         },
     )
     return ask_name_sm
@@ -867,6 +882,13 @@ def generate_ask_drink_sm():
             PROCESS_NLU[10]: "ASK_SOMETHING",
             PROCESS_NLU[11]: "VERIFY",
             PROCESS_NLU[12]: "ASK_SOMETHING",
+            PROCESS_NLU[13]: "ASK_SOMETHING",
+            PROCESS_NLU[14]: "ASK_SOMETHING",
+            PROCESS_NLU[15]: "ASK_SOMETHING",
+            PROCESS_NLU[16]: "ASK_SOMETHING",
+            PROCESS_NLU[17]: "ASK_SOMETHING",
+            PROCESS_NLU[18]: "ASK_SOMETHING",
+            PROCESS_NLU[19]: "ASK_SOMETHING",
         },
     )
 
@@ -928,6 +950,13 @@ def generate_ask_drink_sm():
             PROCESS_NLU[10]: "ASK_SOMETHING",
             PROCESS_NLU[11]: "ASK_SOMETHING",
             PROCESS_NLU[12]: "ASK_SOMETHING",
+            PROCESS_NLU[13]: "ASK_SOMETHING",
+            PROCESS_NLU[14]: "ASK_SOMETHING",
+            PROCESS_NLU[15]: "ASK_SOMETHING",
+            PROCESS_NLU[16]: "ASK_SOMETHING",
+            PROCESS_NLU[17]: "ASK_SOMETHING",
+            PROCESS_NLU[18]: "ASK_SOMETHING",
+            PROCESS_NLU[19]: "ASK_SOMETHING",
         },
     )
     return ask_drink_sm
@@ -976,31 +1005,101 @@ def ask_interested_in_sm():
     )
 
     ask_interested_in_sm.add_state(
-        "NLU_PROCESS_VER",
+        "NLU_PROCESS",
         NLUProcess(True),  # Set verbose to True for detailed logging     
         transitions={
-            PROCESS_NLU[0]: "WHISPER_PROCESS",
-            PROCESS_NLU[1]: "WHISPER_PROCESS",
-            PROCESS_NLU[2]: "WHISPER_PROCESS",
-            PROCESS_NLU[3]: "WHISPER_PROCESS",
-            PROCESS_NLU[4]: "WHISPER_PROCESS",
-            PROCESS_NLU[5]: "WHISPER_PROCESS",
-            PROCESS_NLU[6]: "WHISPER_PROCESS",
-            PROCESS_NLU[7]: "WHISPER_PROCESS",
-            PROCESS_NLU[8]: "WHISPER_PROCESS",
-            PROCESS_NLU[9]: "WHISPER_PROCESS",
-            PROCESS_NLU[10]: "WHISPER_PROCESS",
-            PROCESS_NLU[11]: "WHISPER_PROCESS",
-            PROCESS_NLU[12]: "WHISPER_PROCESS",
-            PROCESS_NLU[13]: "WHISPER_PROCESS",
-            PROCESS_NLU[14]: "ASK_SOMETHING",
-            PROCESS_NLU[15]: "WHISPER_PROCESS",
-            PROCESS_NLU[16]: "WHISPER_PROCESS",
-            PROCESS_NLU[17]: "WHISPER_PROCESS",
-            PROCESS_NLU[18]: "WHISPER_PROCESS",
-            PROCESS_NLU[19]: "WHISPER_PROCESS",
-            PROCESS_NLU[20]: "WHISPER_PROCESS",
+            PROCESS_NLU[0]: "ASK_SOMETHING",
+            PROCESS_NLU[1]: "ASK_SOMETHING",
+            PROCESS_NLU[2]: "ASK_SOMETHING",
+            PROCESS_NLU[3]: "ASK_SOMETHING",
+            PROCESS_NLU[4]: "ASK_SOMETHING",
+            PROCESS_NLU[5]: "ASK_SOMETHING",
+            PROCESS_NLU[6]: "ASK_SOMETHING",
+            PROCESS_NLU[7]: "ASK_SOMETHING",
+            PROCESS_NLU[8]: "ASK_SOMETHING",
+            PROCESS_NLU[9]: "ASK_SOMETHING",
+            PROCESS_NLU[10]: "ASK_SOMETHING",
+            PROCESS_NLU[11]: "ASK_SOMETHING",
+            PROCESS_NLU[12]: "ASK_SOMETHING",
+            PROCESS_NLU[13]: "ASK_SOMETHING",
+            PROCESS_NLU[14]: SUCCEED,
+            PROCESS_NLU[15]: "ASK_SOMETHING",
+            PROCESS_NLU[16]: "ASK_SOMETHING",
+            PROCESS_NLU[17]: "ASK_SOMETHING",
+            PROCESS_NLU[18]: "ASK_SOMETHING",
+            PROCESS_NLU[19]: "ASK_SOMETHING",
+            PROCESS_NLU[20]: "ASK_SOMETHING",
         },
     )
+
+    # ask_interested_in_sm.add_state(
+    #     "VERIFY",
+    #     CoquiTTSState(),
+    #     transitions={
+    #         SUCCEED: "CALLING_WHISPER_VER",
+    #         CANCEL: ABORT,
+    #     },
+    # )
+
+    # ask_interested_in_sm.add_state(
+    #     "CALLING_WHISPER_VER",
+    #     WhisperSTTState(),
+    #     transitions={
+    #         SUCCEED: "WHISPER_PROCESS_VER",
+    #         CANCEL: ABORT,
+    #         ABORT: ABORT,
+    #     },
+    # )
+
+    # ask_interested_in_sm.add_state(
+    #     "WHISPER_PROCESS_VER",
+    #     CbState(["process_whisper1","process_whisper2","process_whisper3"],whisper_process_cb),
+    #     transitions={
+    #         "process_whisper1": "CALLING_WHISPER_VER",
+    #         "process_whisper2": "NLU_INFERENCE_VER",
+    #         # "process_whisper3": "outcome4",
+
+    #     },
+    # )
+
+    # ask_interested_in_sm.add_state(
+    #     "NLU_INFERENCE_VER",
+    #     NLUInference(),
+    #     transitions={
+    #         SUCCEED: "NLU_PROCESS_VER",
+    #         CANCEL: ABORT,
+    #         ABORT: ABORT,
+    #     },
+    #     remappings={"nlu_input_text": "whispered"},
+    # )
+
+    # ask_interested_in_sm.add_state(
+    #     "NLU_PROCESS_VER",
+    #     NLUProcess(True),  # Set verbose to True for detailed logging     
+    #     transitions={
+    #         PROCESS_NLU[0]: "ASK_SOMETHING",
+    #         PROCESS_NLU[1]: "ASK_SOMETHING",
+    #         PROCESS_NLU[2]: "ASK_SOMETHING",
+    #         PROCESS_NLU[3]: "ASK_SOMETHING",
+    #         PROCESS_NLU[4]: "ASK_SOMETHING",
+    #         PROCESS_NLU[5]: "ASK_SOMETHING",
+    #         PROCESS_NLU[6]: "ASK_SOMETHING",
+    #         PROCESS_NLU[7]: "ASK_SOMETHING",
+    #         PROCESS_NLU[8]: "ASK_SOMETHING",
+    #         PROCESS_NLU[9]: "ASK_SOMETHING",
+    #         PROCESS_NLU[10]: "ASK_SOMETHING",
+    #         PROCESS_NLU[11]: "ASK_SOMETHING",
+    #         PROCESS_NLU[12]: "ASK_SOMETHING",
+    #         PROCESS_NLU[13]: "ASK_SOMETHING",
+    #         PROCESS_NLU[14]: "ASK_SOMETHING",
+    #         PROCESS_NLU[15]: "ASK_SOMETHING",
+    #         PROCESS_NLU[16]: "ASK_SOMETHING",
+    #         PROCESS_NLU[17]: "ASK_SOMETHING",
+    #         PROCESS_NLU[18]: "ASK_SOMETHING",
+    #         PROCESS_NLU[19]: "ASK_SOMETHING",
+    #     },
+    # )
+
+    
 
     return ask_interested_in_sm
