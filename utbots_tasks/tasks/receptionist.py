@@ -187,6 +187,20 @@ class CalculateIOUsState(State):
         if union_area == 0:
             return 0.0
         return inter_area / union_area
+    
+
+class CheckGuestCountState(CbState):
+    def __init__(self):
+        # Define possible outcomes
+        outcomes = [SUCCEED, CANCEL]
+        super().__init__(outcomes=outcomes)
+
+    def condition(self, blackboard: Blackboard) -> str:
+        guest_count = blackboard.get("guest", 0)  # Default to 0 if not set
+        if guest_count < 2:
+            return SUCCEED
+        else:
+            return CANCEL
 
 def main():
     yasmin.YASMIN_LOG_INFO("yasmin_action_client_demo")
@@ -347,15 +361,6 @@ def main():
     #     },
     # )
 
-    # single_guest_routine_sm.add_state(
-    #     "ROTATE_IN_BEVERAGE",
-    #     generate_rotate_in_place(node),
-    #     transitions={
-    #         SUCCEED: "FIND_BEVERAGE",
-    #         ABORT: "failed"
-    #     },
-    # )
-
     single_guest_routine_sm.add_state(
         "FIND_BEVERAGE",
         FindObjectState(remappings={"objects": "all_objects"}, action_server="/yolo_node2/YOLO_batch_detection"),
@@ -467,7 +472,36 @@ def main():
         },
     )
 
-    single_guest_routine_sm.add_state(
+    sm = StateMachine(outcomes=[SUCCEED, "success", "failed", CANCEL])
+
+    sm.add_state(
+        "SINGLE_GUEST_ROUTINE",
+        single_guest_routine_sm(blackboard=blackboard),
+        transitions={SUCCEED:"CHECK_GUEST_COUNT",
+                     CANCEL:CANCEL,
+                     ABORT:ABORT}
+    ),
+
+    sm.add_state(
+    "CHECK_GUEST_COUNT",
+    CheckGuestCountState(),
+    transitions={
+        SUCCEED: "RECOGNITION_SM",
+        CANCEL: "GO_TO_GREET"
+    }
+    )
+
+    sm.add_state(
+        "GO_TO_GREET",
+        GoToWaypointState(),
+        transitions={
+            SUCCEED: "SINGLE_GUEST_ROUTINE",
+            ABORT: "failed"
+        },
+        remappings={"waypoint_nametag" : "living_room"}
+    )
+
+    sm.add_state(
         "RECOGNITION_SM",
         generate_recognition_sm(),
         transitions={
@@ -476,7 +510,7 @@ def main():
         },
     )
 
-    single_guest_routine_sm.add_state(
+    sm.add_state(
         "IDENTIFY_YAW",
         IdentifyYAW(),
         transitions={
@@ -485,7 +519,7 @@ def main():
         },
     )
 
-    single_guest_routine_sm.add_state(
+    sm.add_state(
         "ROTATE_45",
         generate_rotate_in_place(node),
         transitions={
@@ -497,7 +531,7 @@ def main():
         }
     )
 
-    single_guest_routine_sm.add_state(
+    sm.add_state(
         "ROTATE_TO_PERSON",
         generate_rotate_in_place(node),
         transitions={
@@ -506,7 +540,7 @@ def main():
         },
     )
 
-    single_guest_routine_sm.add_state(
+    sm.add_state(
         "SAVE_POSITION",
         SavePosition(),
         transitions={
@@ -515,7 +549,7 @@ def main():
         },
     )
     
-    single_guest_routine_sm.add_state(
+    sm.add_state(
         "CHECK_CONTINUATION",
         CheckContinuation(),
         transitions={

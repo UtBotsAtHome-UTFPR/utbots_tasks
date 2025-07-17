@@ -27,6 +27,7 @@ setup(
     entry_points={
         'console_scripts': [
             'recognition = utbots_tasks.states.basic_face:main',
+            'basic_vision = utbots_tasks.states.basic_vision:main',
             'beverage_search = utbots_tasks.tasks.beverage_search:main',
             'voice_nav_smach = utbots_tasks.tasks.voice_nav:main',
             'receptionist = utbots_tasks.tasks.receptionist:main',
