@@ -32,7 +32,7 @@ def generate_launch_description():
             launch_arguments={
                 'use_sim_time': 'false',
                 'use_imu': 'false',
-                'map': '/home/laser/ros2_ws/src/utbots_navigation/utbots_nav/map/pitaco.yaml'
+                'map': '/home/ehg2004/utbots_ws/src/utbots_navigation/utbots_nav/map/arena_filled.yaml'
             }.items()
         ),
 
@@ -73,9 +73,9 @@ def generate_launch_description():
             name='usb_cam',
             output='screen',
             parameters=[{
-                'video_device': '/dev/video0', # for laptop cam, 2 for usb cam
-                'image_height': 720,
-                'image_width': 1280
+                'video_device': '/dev/video2', # for laptop cam, 2 for usb cam
+                'image_height': 1080,
+                'image_width': 1920
             }]
         ),
         
@@ -87,6 +87,8 @@ def generate_launch_description():
             emulate_tty=True,
             parameters=[
                 {
+                    'model_path':
+                    '/home/laser/ros2_ws/src/utbots_nlu/rasa/models/20250716-120427-brass-queue.tar.gz',
                   }
             ]
         ),

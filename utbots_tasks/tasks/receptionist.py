@@ -134,9 +134,8 @@ def main():
     set_ros_loggers()
 
     # Create a finite state machine (FSM)
-    sm = StateMachine(outcomes=["success", "failed"])
+    single_guest_routine_sm = StateMachine(outcomes=[SUCCEED, "success", "failed", CANCEL])
 
-    single_guest_routine_sm = StateMachine(outcomes=["success", "failed"])
     single_guest_routine_sm.add_state(
         "SET_INIT_POSE",
         SetInitialPose(node, 0.0, 0.0, 0.0),
@@ -204,7 +203,7 @@ def main():
             # SUCCEED: "NEW_FACE_SM",
             SUCCEED: "ASK_INTERESTED_IN",
             # SUCCEED: "REGISTER_PERSON",
-            SUCCEED: "ASK_FOLLOW",
+            # SUCCEED: "ASK_FOLLOW",
             CANCEL: "failed",
         },
     )
@@ -400,21 +399,21 @@ def main():
         "TTS_SEAT",
         CoquiTTSState(),
         transitions={
-            SUCCEED: "RECOGNITION_SM",
+            SUCCEED: SUCCEED,
             CANCEL: "failed",
         },
     )
 
-    sm.add_state(
+    single_guest_routine_sm.add_state(
         "RECOGNITION_SM",
         generate_recognition_sm(),
         transitions={
-            SUCCEED: "IDENTIFY_YAW",
+            SUCCEED: SUCCEED,
             CANCEL: CANCEL,
         },
     )
 
-    sm.add_state(
+    single_guest_routine_sm.add_state(
         "IDENTIFY_YAW",
         IdentifyYAW(),
         transitions={
@@ -423,7 +422,7 @@ def main():
         },
     )
 
-    sm.add_state(
+    single_guest_routine_sm.add_state(
         "ROTATE_45",
         generate_rotate_in_place(node),
         transitions={
@@ -435,7 +434,7 @@ def main():
         }
     )
 
-    sm.add_state(
+    single_guest_routine_sm.add_state(
         "ROTATE_TO_PERSON",
         generate_rotate_in_place(node),
         transitions={
@@ -444,7 +443,7 @@ def main():
         },
     )
 
-    sm.add_state(
+    single_guest_routine_sm.add_state(
         "SAVE_POSITION",
         SavePosition(),
         transitions={
@@ -453,7 +452,7 @@ def main():
         },
     )
     
-    sm.add_state(
+    single_guest_routine_sm.add_state(
         "CHECK_CONTINUATION",
         CheckContinuation(),
         transitions={
@@ -461,9 +460,8 @@ def main():
             CANCEL: CANCEL # Do tasks
         },
     )
-
     # Publish FSM information
-    YasminViewerPub("YASMIN_ACTION_CLIENT_DEMO", sm)
+    YasminViewerPub("YASMIN_ACTION_CLIENT_DEMO", single_guest_routine_sm)
 
     # Create an initial blackboard with the input value
     blackboard = Blackboard()
@@ -474,14 +472,14 @@ def main():
     blackboard["seat"] = ["chair","sofa","couch"]
     blackboard["person"] = "person"
     blackboard["rotate"] = 45
-    blackboard['yaml_path'] = '/home/ehg2004/utbots_ws/src/utbots_navigation/utbots_nav/map/arena_filled.yaml'
+    blackboard['yaml_path'] = '/home/ehg2004/utbots_ws/src/utbots_navigation/utbots_nav/map/arena_filled_waypoints.yaml'
     blackboard['waypoint_room'] = 'receptionist_bar'
 
     blackboard["bedroom"] = "bedroom"
     blackboard["kitchen"] = "kitchen"
     blackboard["living_room"] = "receptionist_greet"
-    blackboard["room"] = "receptionist_bar"
-
+    # blackboard["room"] = "receptionist_bar" #bedroom_to_table
+    blackboard["room"] = "bedroom_to_table"
     # TTS blackboard variables for this task
     blackboard["come_in"] = "Hello,please come in."
     blackboard["greet"] = "I am Hestia." 
@@ -494,17 +492,19 @@ def main():
 
     blackboard["person_list"]=[]
     blackboard["interested_in"]="robotics"
+    blackboard["ask_interested_in"]="What are your interests?"
+
 
     blackboard["45_rotation"] = 45
     blackboard["people_count"] = 0
     blackboard["rotation_count"] = 0
 
     try:
-        outcome = sm(blackboard)
+        outcome = single_guest_routine_sm(blackboard)
         yasmin.YASMIN_LOG_INFO(outcome)
     except KeyboardInterrupt:
-        if sm.is_running():
-            sm.cancel_state()  # Cancel the state if interrupted
+        if single_guest_routine_sm.is_running():
+            single_guest_routine_sm.cancel_state()  # Cancel the state if interrupted
 
     # Shutdown ROS
     if rclpy.ok():
