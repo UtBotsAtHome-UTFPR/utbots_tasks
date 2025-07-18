@@ -3,6 +3,7 @@ import yasmin
 from yasmin import State, Blackboard
 from yasmin_ros.basic_outcomes import SUCCEED, ABORT
 from sensor_msgs.msg import Image
+from std_msgs.msg import String
 from cv_bridge import CvBridge
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
@@ -19,7 +20,7 @@ class DetectionLogState(State):
         yasmin.YASMIN_LOG_INFO("person_recognition_sm started")
 
         try:
-            labeled_img: Image = blackboard.get("labeled_img")
+            labeled_img: Image = blackboard.get("annotated_img")
             bboxes = blackboard.get("bboxes").bounding_boxes  # adjust type if needed
 
             # Convert ROS Image to OpenCV
@@ -53,11 +54,11 @@ class DetectionLogState(State):
             c.save()
 
             yasmin.YASMIN_LOG_INFO(f"PDF saved to {pdf_path}")
-            return 'log_saved'
+            return SUCCEED
 
         except Exception as e:
             yasmin.YASMIN_LOG_INFO(f"Error while saving detection log: {e}")
-            return 'aborted'
+            return ABORT
         
 class CrowdLogState(State):
     def __init__(self):
@@ -93,6 +94,7 @@ class CrowdLogState(State):
             ### DRAW FACE BOUNDING BOXES
 
             c.showPage()
+            return SUCCEED
 
         except Exception as e:
             yasmin.YASMIN_LOG_INFO(f"Error while processing annotated image: {e}")
@@ -101,7 +103,6 @@ class CrowdLogState(State):
         ### Adicionar detecção de rosto
 
             
-
 class AnswersLogState(State):
     def __init__(self, node: Node):
         super().__init__(outcomes=['log_saved', 'aborted'], input_keys=['nlu_input', 'nlu_output'])
