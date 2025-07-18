@@ -55,7 +55,7 @@ class IdentifyYAW(State):
         # Read people direction list (if not exist create) if person does not have yaw set it up
         if "people_yaw" not in blackboard:
             print("create positions to state at during conversation")
-            blackboard["people_yaw"] = []#["Teste"]
+            blackboard["people_yaw"] = ["Teste"]#["Teste"]
 
         people = blackboard["people"]
 
@@ -471,7 +471,7 @@ def yaw_test():
         rclpy.shutdown()
 
 
-#def main_face():
-#    #state_test()
+def maina():
+    #state_test()
     #sm_test()
-#    yaw_test()
+    yaw_test()

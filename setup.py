@@ -33,7 +33,9 @@ setup(
             'receptionist = utbots_tasks.tasks.receptionist:main',
             'take_pictures = utbots_tasks.states.take_pictures:main',
             'concurrence = utbots_tasks.states.concurrence_test:main',
-            'inspection = utbots_tasks.tasks.inspection:main'
+            'inspection = utbots_tasks.tasks.inspection:main',
+            'person_recognition = utbots_tasks.tasks.person_recognition:main',
+            'manipulation_object_detection = utbots_tasks.tasks.manipulation_and_object_recognition:main'
         ],
     },
 )

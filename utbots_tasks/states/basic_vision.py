@@ -54,7 +54,7 @@ class FindObjectState(ActionState):
 
     def response_handler(self, blackboard: Blackboard, response: YOLOBatchDetection.Result) -> str:
         detections = response.detected_objs.bounding_boxes
-        blackboard["annotated_img"] = response.annotated_img
+        blackboard["annotated_img"] = response.annotated_image
         blackboard["detections"] = detections if detections else []
         
         if self.verbose:

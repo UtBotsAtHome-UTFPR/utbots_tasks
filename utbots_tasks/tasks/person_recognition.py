@@ -21,8 +21,8 @@ def main():
     set_ros_loggers()
 
     # Create a finite state machine (FSM)
-    sm = StateMachine(outcomes=[SUCCEED, "success", "failed", CANCEL])
-
+    sm = StateMachine(outcomes=[SUCCEED, "success", "failed", CANCEL, ABORT])
+    yasmin.YASMIN_LOG_INFO("person_recognition_sm started")
     sm.add_state(
         "SET_INIT_POSE",
         SetInitialPose(node, 0.0, 0.0, 0.0),
@@ -54,19 +54,20 @@ def main():
 
     sm.add_state(
         "FIND_OPERATOR_ALONE",
-        FindObjectState(remappings={"objects": "person"}, action_server="/YOLO_batch_detection"),
+        FindObjectState(action_server="/YOLO_batch_detection"),
         transitions={
             SUCCEED: "TTS_GREET",
             CANCEL: "FIND_OPERATOR_ALONE",
             ABORT: "failed",
-        }
+        },
+        remappings={"objects": "person"}
     )
 
     sm.add_state(
         "TTS_GREET",
         CoquiTTSState(),
         transitions={
-            SUCCEED: "ASK_NAME",
+            SUCCEED: "TTS_INSTRUCT_REGISTER_FACE",
             CANCEL: "failed",
         },
         remappings = {"tts_text" : "tts-greet"}   
@@ -76,10 +77,10 @@ def main():
         "ASK_NAME",
         generate_ask_name_sm(),
         transitions={
-            SUCCEED: "CONFIRM_NAME",
+            SUCCEED: "TTS_CONFIRM_NAME",
             CANCEL: "failed",
         },
-        remappings = {"tts_text" : "tts-ask_name"}
+        remappings = {"tts_text" : "ask_name"}
     )
 
     sm.add_state(
@@ -115,10 +116,10 @@ def main():
         "TTS_PERSON_REGISTERED",
         CoquiTTSState(),
         transitions={
-            SUCCEED: "ROTATE_180_DEGREES",
+            SUCCEED: "FIND_PEOPLE",
             CANCEL: "failed",
         },
-        remappings = {"tts_text" : "person_registered"}
+        remappings = {"tts_text" : "tts-person_registered"}
     )
 
     sm.add_state(
@@ -132,12 +133,13 @@ def main():
 
     sm.add_state(
         "FIND_PEOPLE",
-        FindObjectState(remappings={"objects": "person"}, action_server="/YOLO_batch_detection"),
+        FindObjectState(action_server="/YOLO_batch_detection"),
         transitions={
             SUCCEED: "RECOGNITION_SM",
             CANCEL: "RECOGNITION_SM",
             ABORT: "failed",
-        }
+        },
+        remappings={"objects": "person"}
     )
 
     sm.add_state(
@@ -162,10 +164,11 @@ def main():
     blackboard["people_count"] = 0
 
     # TTS blackboard variables for this task
-    blackboard["tts-initiating_task"] = "Initiating person recognition task."
+    blackboard["tts-initiate_task"] = "Initiating person recognition task."
+    # blackboard["tts_text"] = "Initiating person recognition task."
     blackboard["tts-come_in"] = "Hello,please come in and stand in front of me."
     blackboard["tts-greet"] = "Hello, I am Hestia."
-    blackboard["tts-ask_name"] = "What is your name?"
+    blackboard["ask_name"] = "What is your name?"
     blackboard["tts-instruct_register_face"] = "Please stand still and face me while I register your face."
     blackboard["tts-person_registered"] = "Your face has been registered successfully. Please go to the crowd. I will turn in 30 seconds."
     
