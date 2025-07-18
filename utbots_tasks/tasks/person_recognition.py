@@ -9,6 +9,7 @@ from utbots_tasks.states.basic_face import generate_new_face_sm, generate_recogn
 from utbots_tasks.states.basic_nav import generate_rotate_in_place, SetInitialPose
 from utbots_tasks.states.basic_voice import CoquiTTSState, get_process_nlu, generate_ask_name_sm
 from utbots_tasks.states.basic_vision import FindObjectState
+from utbots_tasks.states.logs import CrowdLogState
 
 # PROCESS_NLU=get_process_nlu()
 
@@ -67,7 +68,7 @@ def main():
         "TTS_GREET",
         CoquiTTSState(),
         transitions={
-            SUCCEED: "TTS_INSTRUCT_REGISTER_FACE",
+            SUCCEED: "ASK_NAME",
             CANCEL: "failed",
         },
         remappings = {"tts_text" : "tts-greet"}   
@@ -116,7 +117,7 @@ def main():
         "TTS_PERSON_REGISTERED",
         CoquiTTSState(),
         transitions={
-            SUCCEED: "FIND_PEOPLE",
+            SUCCEED: "ROTATE_180_DEGREES",
             CANCEL: "failed",
         },
         remappings = {"tts_text" : "tts-person_registered"}
@@ -146,10 +147,21 @@ def main():
         "RECOGNITION_SM",
         generate_recognition_sm(),
         transitions={
-            SUCCEED: SUCCEED,
+            SUCCEED: "GENERATE_LOG",
             CANCEL: CANCEL,
         },
     )
+    
+    sm.add_state(
+        "GENERATE_LOG",
+        CrowdLogState(),
+        transitions={
+            SUCCEED: SUCCEED,
+            ABORT: ABORT,
+        },
+    )
+
+    ## GENERATE PERSON POINT AND NAVIGATE IN FRONT OF IT
 
     # Publish FSM information
     YasminViewerPub("PERSONAL_RECOGNITION_SM", sm)

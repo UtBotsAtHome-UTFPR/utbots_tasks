@@ -28,14 +28,15 @@ setup(
         'console_scripts': [
             'recognition = utbots_tasks.states.basic_face:main',
             'basic_vision = utbots_tasks.states.basic_vision:main',
-            'beverage_search = utbots_tasks.tasks.beverage_search:main',
-            'voice_nav_smach = utbots_tasks.tasks.voice_nav:main',
-            'receptionist = utbots_tasks.tasks.receptionist:main',
+            'basic_nav = utbots_tasks.states.basic_nav:main',
+            'basic_voice = utbots_tasks.states.basic_voice:main',
+            'voice_nav_smach = utbots_tasks.states.voice_nav:main',
             'take_pictures = utbots_tasks.states.take_pictures:main',
             'concurrence = utbots_tasks.states.concurrence_test:main',
             'inspection = utbots_tasks.tasks.inspection:main',
             'person_recognition = utbots_tasks.tasks.person_recognition:main',
-            'manipulation_object_detection = utbots_tasks.tasks.manipulation_and_object_recognition:main'
+            'manipulation_object_detection = utbots_tasks.tasks.manipulation_and_object_recognition:main',
+            'receptionist = utbots_tasks.tasks.receptionist:main'
         ],
     },
 )

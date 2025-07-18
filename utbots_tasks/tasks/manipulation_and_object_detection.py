@@ -9,6 +9,7 @@ from utbots_tasks.states.utils import CheckIterations
 from utbots_tasks.states.basic_nav import GoToWaypointState
 from utbots_tasks.states.basic_voice import CoquiTTSState
 from utbots_tasks.states.basic_vision import FindObjectState
+from utbots_tasks.states.logs import DetectionLogState
 
 def main():
     yasmin.YASMIN_LOG_INFO("manipulation_and_object_detection_sm started")
@@ -58,6 +59,11 @@ def main():
             "continue": SUCCEED,
             "repeat": "FIND_OBJECTS"
         },
+    )
+
+    sm.add_state(
+        "DETECTION_LOG",
+
     )
 
     # IF NOT_DETECTED, REPEAT FIND OBJECTS FOR A NUMBER OF TIMES
