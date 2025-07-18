@@ -1,5 +1,5 @@
 import yasmin
-from yasmin import Blackboard, StateMachine
+from yasmin import Blackboard, StateMachine, State
 from yasmin_ros import set_ros_loggers
 from yasmin_ros.basic_outcomes import SUCCEED, ABORT, CANCEL
 from yasmin_viewer import YasminViewerPub

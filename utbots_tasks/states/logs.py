@@ -13,15 +13,15 @@ from datetime import datetime
 
 class DetectionLogState(State):
     def __init__(self):
-        super().__init__(outcomes=['succeded', 'aborted'])
+        super().__init__(outcomes=[SUCCEED, ABORT])
         self.bridge = CvBridge()
 
     def execute(self, blackboard: Blackboard) -> str:
         yasmin.YASMIN_LOG_INFO("person_recognition_sm started")
 
         try:
-            labeled_img: Image = blackboard.get("annotated_img")
-            bboxes = blackboard.get("bboxes").bounding_boxes  # adjust type if needed
+            labeled_img: Image = blackboard["annotated_img"]
+            bboxes = blackboard["detections"] # adjust type if needed
 
             # Convert ROS Image to OpenCV
             cv_image = self.bridge.imgmsg_to_cv2(labeled_img, desired_encoding='bgr8')
@@ -46,7 +46,7 @@ class DetectionLogState(State):
 
             for bbox in bboxes:
                 # If bbox.Class doesn't exist, replace with bbox.class_id or appropriate field
-                detected_class = getattr(bbox, "Class", getattr(bbox, "class_id", "Unknown"))
+                detected_class = getattr(bbox, "Class", getattr(bbox, "id", "Unknown"))
                 c.drawString(100, text_height, f"- {detected_class}")
                 text_height -= 12
 
@@ -76,14 +76,14 @@ class CrowdLogState(State):
             c.setFont("Helvetica", 12)
 
             # People count
-            detections = blackboard.get("detections")
+            detections = blackboard["detections"]
             people_count = len(detections)
             c.drawString(100, 400, f"People Count: {people_count}")
             blackboard["people_count"] = people_count
 
             # Annotated person image
             c.drawString(100, 420, "Annotated Crowd Image:")
-            annotated_img = blackboard.get("annotated_img")
+            annotated_img = blackboard["annotated_img"]
             cv_image = self.bridge.imgmsg_to_cv2(annotated_img, desired_encoding='bgr8')
 
             # Save image temporarily
@@ -114,8 +114,8 @@ class AnswersLogState(State):
         self.node.get_logger().info("Executing AnswersLogState")
 
         try:
-            nlu_input: String = blackboard.get('nlu_input')
-            nlu_output: String = blackboard.get('nlu_output')
+            nlu_input: String = blackboard['nlu_input']
+            nlu_output: String = blackboard['nlu_output']
 
             question = nlu_input.data.replace("data: ", "")
             answer = nlu_output.data.replace("data: ", "")

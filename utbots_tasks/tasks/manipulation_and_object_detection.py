@@ -1,6 +1,6 @@
 import rclpy
 import yasmin
-from yasmin import Blackboard, StateMachine
+from yasmin import Blackboard, StateMachine, State
 from yasmin_ros import set_ros_loggers
 from yasmin_ros.basic_outcomes import SUCCEED, ABORT, CANCEL
 from yasmin_viewer import YasminViewerPub
@@ -25,7 +25,7 @@ def main():
         "TTS_INITIATING_TASK",
         CoquiTTSState(),
         transitions={
-            SUCCEED: "GO_TO_COLLECTION_LOCATION",
+            SUCCEED: "FIND_OBJECTS",
             CANCEL: CANCEL,
         },
         remappings={"tts_text": "tts-initiating_task"}
@@ -45,7 +45,7 @@ def main():
         "FIND_OBJECTS",
         FindObjectState(action_server="/YOLO_batch_detection"),
         transitions={
-            SUCCEED: SUCCEED,
+            SUCCEED: "RETRY_OR_NOT",
             'not_detected': "FIND_OBJECTS",
             CANCEL: CANCEL,
             ABORT: ABORT
@@ -56,14 +56,18 @@ def main():
         "RETRY_OR_NOT",
         CheckIterations(),
         transitions={
-            "continue": SUCCEED,
+            "continue": "DETECTION_LOG",
             "repeat": "FIND_OBJECTS"
         },
     )
 
     sm.add_state(
         "DETECTION_LOG",
-
+        DetectionLogState(),
+        transitions={
+            SUCCEED: SUCCEED,
+            ABORT: ABORT
+        },
     )
 
     # IF NOT_DETECTED, REPEAT FIND OBJECTS FOR A NUMBER OF TIMES
@@ -90,9 +94,10 @@ def main():
     blackboard["iou_threshold"] = 0.5
     blackboard["support_threshold"] = 0.4
     blackboard["batch_size"] = 50
-    blackboard["objects"] = None
+    blackboard["objects"] = []
     blackboard['yaml_path'] = '/home/ehg2004/utbots_ws/src/utbots_navigation/utbots_nav/map/arena_filled_waypoints.yaml'
     blackboard['wp-object_collection'] = 'receptionist_bar'
+    blackboard['iterations'] = 3  # Number of iterations for retrying object detection
     # blackboard['wp-object_collection'] = 'object_collection'
 
     # TTS blackboard variables for this task
