@@ -405,7 +405,7 @@ def yaw_test():
         IdentifyYAW(),
         transitions={
             SUCCEED: "SAVE_POSITION", #"ROTATE_TO_PERSON",
-            CANCEL: "SAVE_POSITION" #"ROTATE_45", # Girar 45º
+            CANCEL: "ROTATE_45" #"ROTATE_45", # Girar 45º
         },
     )
 
