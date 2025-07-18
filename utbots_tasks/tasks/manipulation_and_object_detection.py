@@ -92,7 +92,8 @@ def main():
     blackboard["batch_size"] = 50
     blackboard["objects"] = None
     blackboard['yaml_path'] = '/home/ehg2004/utbots_ws/src/utbots_navigation/utbots_nav/map/arena_filled_waypoints.yaml'
-    blackboard['wp-object_collection'] = 'object_collection'
+    blackboard['wp-object_collection'] = 'receptionist_bar'
+    # blackboard['wp-object_collection'] = 'object_collection'
 
     # TTS blackboard variables for this task
     blackboard["tts-initiating_task"] = "Initiating manipulation and object recognition task."
