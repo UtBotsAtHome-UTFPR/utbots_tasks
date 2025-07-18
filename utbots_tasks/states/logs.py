@@ -1,27 +1,22 @@
 import cv2
-import os
+import yasmin
 from yasmin import State, Blackboard
+from yasmin_ros.basic_outcomes import SUCCEED, ABORT
 from sensor_msgs.msg import Image
-from std_msgs.msg import String
-from std_msgs.msg import Header
-from vision_msgs.msg import BoundingBox2D  # substitua com o tipo correto se necessário
 from cv_bridge import CvBridge
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import inch
 from rclpy.node import Node
-import rclpy
-import time
 from datetime import datetime
 
 class DetectionLogState(State):
-    def __init__(self, node: Node):
-        super().__init__(outcomes=['log_saved', 'aborted'])
-        self.node = node
+    def __init__(self):
+        super().__init__(outcomes=['succeded', 'aborted'])
         self.bridge = CvBridge()
 
     def execute(self, blackboard: Blackboard) -> str:
-        self.node.get_logger().info("Executing DetectionLogState...")
+        yasmin.YASMIN_LOG_INFO("person_recognition_sm started")
 
         try:
             labeled_img: Image = blackboard.get("labeled_img")
@@ -57,12 +52,55 @@ class DetectionLogState(State):
             c.showPage()
             c.save()
 
-            self.node.get_logger().info(f"PDF saved to {pdf_path}")
+            yasmin.YASMIN_LOG_INFO(f"PDF saved to {pdf_path}")
             return 'log_saved'
 
         except Exception as e:
-            self.node.get_logger().error(f"Error while saving detection log: {e}")
+            yasmin.YASMIN_LOG_INFO(f"Error while saving detection log: {e}")
             return 'aborted'
+        
+class CrowdLogState(State):
+    def __init__(self):
+        super().__init__(outcomes=[SUCCEED, ABORT])
+        self.bridge = CvBridge()
+        self.pdf_path = "/tmp/personal_recognition.pdf"
+
+    def execute(self, blackboard: Blackboard) -> str:
+        yasmin.YASMIN_LOG_INFO("Saving crowd log")
+
+        try:
+            # Create PDF
+            c = canvas.Canvas(self.pdf_path, pagesize=A4)
+            c.setPageSize(A4)
+            c.setFont("Helvetica", 12)
+
+            # People count
+            detections = blackboard.get("detections")
+            people_count = len(detections)
+            c.drawString(100, 400, f"People Count: {people_count}")
+            blackboard["people_count"] = people_count
+
+            # Annotated person image
+            c.drawString(100, 420, "Annotated Crowd Image:")
+            annotated_img = blackboard.get("annotated_img")
+            cv_image = self.bridge.imgmsg_to_cv2(annotated_img, desired_encoding='bgr8')
+
+            # Save image temporarily
+            image_filename = "/tmp/crowd_log_img.jpg"
+            cv2.imwrite(image_filename, cv_image)
+            c.drawImage(image_filename, x=85, y=440, width=6*inch, height=4.5*inch)
+
+            ### DRAW FACE BOUNDING BOXES
+
+            c.showPage()
+
+        except Exception as e:
+            yasmin.YASMIN_LOG_INFO(f"Error while processing annotated image: {e}")
+            return ABORT
+            
+        ### Adicionar detecção de rosto
+
+            
 
 class AnswersLogState(State):
     def __init__(self, node: Node):

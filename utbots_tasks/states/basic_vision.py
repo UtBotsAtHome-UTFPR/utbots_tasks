@@ -54,13 +54,14 @@ class FindObjectState(ActionState):
 
     def response_handler(self, blackboard: Blackboard, response: YOLOBatchDetection.Result) -> str:
         detections = response.detected_objs.bounding_boxes
+        blackboard["annotated_img"] = response.annotated_img
+        blackboard["detections"] = detections if detections else []
         
         if self.verbose:
             yasmin.YASMIN_LOG_INFO(f"[DEBUG] Detections: ")
             for detection in detections:
                 yasmin.YASMIN_LOG_INFO(f"[DEBUG] {detection}")
         
-        blackboard["detections"] = detections if detections else []
         return SUCCEED if detections else "not_detected"
     
 def main():
