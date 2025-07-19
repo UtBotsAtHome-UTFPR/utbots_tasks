@@ -210,6 +210,40 @@ def main():
      # Set up ROS 2 logs
     set_ros_loggers()
 
+    blackboard = Blackboard()
+    blackboard["iou_threshold"] = 0.5
+    blackboard["support_threshold"] = 0.4
+    blackboard["batch_size"] = 50
+    blackboard["beverage"] = "bottle"
+    blackboard["seat"] = ["chair","sofa","couch"]
+    blackboard["person"] = "person"
+    blackboard["rotate"] = 45
+    blackboard['yaml_path'] = '/home/ehg2004/utbots_ws/src/utbots_navigation/utbots_nav/map/arena_filled_waypoints.yaml'
+    blackboard['waypoint_room'] = 'room_bar_kitchen'
+
+    blackboard["bedroom"] = "bedroom"
+    blackboard["kitchen"] = "kitchen"
+    blackboard["living_room"] = "room_bar_kitchen"
+    # blackboard["room"] = "receptionist_bar" #bedroom_to_table
+    blackboard["room"] = "room_bar_kitchen"
+    # TTS blackboard variables for this task
+    blackboard["come_in"] = "Hello,please come in."
+    blackboard["greet"] = "I am Hestia." 
+    blackboard["ask_name"] = "What is your name?"
+    blackboard["ask_drink"] = "What drink would you like."
+    blackboard["ask_follow"] = "Please follow me."
+    blackboard["tts_text"] = "come_in."
+    blackboard["name"]= None
+    blackboard["drink"]=None
+    blackboard["all_objects"]=['drinks-coffee', 'drinks-coke', 'drinks-fanta', 'drinks-kuat', 'drinks-milk', 'drinks-orange_juice']
+
+    blackboard["person_list"]=[]
+    blackboard["interested_in"]="robotics"
+    blackboard["ask_interested_in"]="What are your interests?"
+
+    blackboard["people_count"] = 0
+    blackboard["rotation_count"] = 0
+
     # Create a finite state machine (FSM)
     single_guest_routine_sm = StateMachine(outcomes=[SUCCEED, "success", "failed", CANCEL])
 
@@ -518,39 +552,7 @@ def main():
     YasminViewerPub("YASMIN_ACTION_CLIENT_DEMO", single_guest_routine_sm)
 
     # Create an initial blackboard with the input value
-    blackboard = Blackboard()
-    blackboard["iou_threshold"] = 0.5
-    blackboard["support_threshold"] = 0.4
-    blackboard["batch_size"] = 50
-    blackboard["beverage"] = "bottle"
-    blackboard["seat"] = ["chair","sofa","couch"]
-    blackboard["person"] = "person"
-    blackboard["rotate"] = 45
-    blackboard['yaml_path'] = '/home/ehg2004/utbots_ws/src/utbots_navigation/utbots_nav/map/arena_filled_waypoints.yaml'
-    blackboard['waypoint_room'] = 'room_bar_kitchen'
-
-    blackboard["bedroom"] = "bedroom"
-    blackboard["kitchen"] = "kitchen"
-    blackboard["living_room"] = "room_bar_kitchen"
-    # blackboard["room"] = "receptionist_bar" #bedroom_to_table
-    blackboard["room"] = "room_bar_kitchen"
-    # TTS blackboard variables for this task
-    blackboard["come_in"] = "Hello,please come in."
-    blackboard["greet"] = "I am Hestia." 
-    blackboard["ask_name"] = "What is your name?"
-    blackboard["ask_drink"] = "What drink would you like."
-    blackboard["ask_follow"] = "Please follow me."
-    blackboard["tts_text"] = "come_in."
-    blackboard["name"]= None
-    blackboard["drink"]=None
-    blackboard["all_objects"]=['drinks-coffee', 'drinks-coke', 'drinks-fanta', 'drinks-kuat', 'drinks-milk', 'drinks-orange_juice']
-
-    blackboard["person_list"]=[]
-    blackboard["interested_in"]="robotics"
-    blackboard["ask_interested_in"]="What are your interests?"
-
-    blackboard["people_count"] = 0
-    blackboard["rotation_count"] = 0
+    
 
     try:
         outcome = single_guest_routine_sm(blackboard)
