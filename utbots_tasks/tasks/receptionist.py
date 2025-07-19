@@ -9,7 +9,7 @@ from yasmin_ros import set_ros_loggers
 from yasmin_ros.basic_outcomes import SUCCEED, ABORT, CANCEL
 from yasmin_viewer import YasminViewerPub
 
-from utbots_tasks.states.basic_face import RecognitionState, NewFaceState, generate_new_face_sm, generate_recognition_sm, IdentifyYAW, SavePosition, CheckContinuation
+from utbots_tasks.states.basic_face import RecognitionState, NewFaceState, generate_new_face_sm, generate_recognition_sm, IdentifyYAW, SavePosition, CheckContinuation, get_people_position_sm
 
 from utbots_tasks.states.basic_nav import GetCurrentPoseState, generate_rotate_in_place, GoToWaypointState, WaitDoorOpenState, SetInitialPose
 
@@ -502,61 +502,14 @@ def main():
     )
 
     sm.add_state(
-        "RECOGNITION_SM",
-        generate_recognition_sm(),
+        "GET_PEOPLE_POSITION",
+        get_people_position_sm(node),
         transitions={
             SUCCEED: SUCCEED,
-            CANCEL: CANCEL,
-        },
-    )
-
-    sm.add_state(
-        "IDENTIFY_YAW",
-        IdentifyYAW(),
-        transitions={
-            SUCCEED: "SAVE_POSITION", #"ROTATE_TO_PERSON",
-            CANCEL: "SAVE_POSITION" #"ROTATE_45", # Girar 45º
-        },
-    )
-
-    sm.add_state(
-        "ROTATE_45",
-        generate_rotate_in_place(node),
-        transitions={
-            SUCCEED: "CHECK_CONTINUATION",
-            ABORT: CANCEL
-        },
-        remappings={
-            "angle":"45_rotation"
+            ABORT: ABORT # Look at direction you know no one is in and ask guest/s to go to this position
         }
     )
 
-    sm.add_state(
-        "ROTATE_TO_PERSON",
-        generate_rotate_in_place(node),
-        transitions={
-            SUCCEED: "SAVE_POSITION",
-            ABORT: CANCEL
-        },
-    )
-
-    sm.add_state(
-        "SAVE_POSITION",
-        SavePosition(),
-        transitions={
-            SUCCEED: "CHECK_CONTINUATION",
-            CANCEL: CANCEL
-        },
-    )
-    
-    sm.add_state(
-        "CHECK_CONTINUATION",
-        CheckContinuation(),
-        transitions={
-            SUCCEED: "RECOGNITION_SM",
-            CANCEL: CANCEL # Do tasks
-        },
-    )
     # Publish FSM information
     YasminViewerPub("YASMIN_ACTION_CLIENT_DEMO", single_guest_routine_sm)
 
@@ -592,8 +545,6 @@ def main():
     blackboard["interested_in"]="robotics"
     blackboard["ask_interested_in"]="What are your interests?"
 
-
-    blackboard["45_rotation"] = 45
     blackboard["people_count"] = 0
     blackboard["rotation_count"] = 0
 
