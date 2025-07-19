@@ -29,7 +29,7 @@ def generate_launch_description():
             launch_arguments={
                 'use_sim_time': 'false',
                 'use_imu': 'false',
-                'map': '/home/laser/ros2_ws/src/utbots_navigation/utbots_nav/map/arena_filled.yaml'
+                'map': '/home/ehg2004/utbots_ws/src/utbots_navigation/utbots_nav/map/arena_filled.yaml'
             }.items()
         ),
 
@@ -71,8 +71,8 @@ def generate_launch_description():
                 'frame_id': 'camera',
                 'pixel_format': 'mjpeg2rgb',
                 'av_device_format': 'YUV422P',
-                'image_width': 1280,
-                'image_height': 720,
+                'image_width': 1920,
+                'image_height': 1080,
                 'camera_name': 'test_camera',
                 'camera_info_url': 'file:///home/laser/.ros/camera_info/default_cam.yaml',
                 'brightness': -1,

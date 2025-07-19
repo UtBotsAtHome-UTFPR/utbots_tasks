@@ -5,13 +5,19 @@ from yasmin_ros import set_ros_loggers
 from yasmin_ros.basic_outcomes import SUCCEED, ABORT, CANCEL
 from yasmin_viewer import YasminViewerPub
 
-from utbots_tasks.states.basic_face import generate_new_face_sm, generate_recognition_sm
+from utbots_tasks.states.basic_face import generate_new_face_sm, generate_recognition_sm, USBCamOff, USBCamOn
 from utbots_tasks.states.basic_nav import generate_rotate_in_place, SetInitialPose
-from utbots_tasks.states.basic_voice import CoquiTTSState, get_process_nlu, generate_ask_name_sm
+from utbots_tasks.states.basic_voice import CoquiTTSState, get_process_nlu, generate_ask_name_sm, whisper_process_cb
 from utbots_tasks.states.basic_vision import FindObjectState
 from utbots_tasks.states.logs import CrowdLogState
 
 # PROCESS_NLU=get_process_nlu()
+
+def cb_wait(blackboard: Blackboard):
+    import time
+    time.sleep(15)
+    return SUCCEED
+
 
 def main():
     yasmin.YASMIN_LOG_INFO("person_recognition_sm started")
@@ -24,6 +30,16 @@ def main():
     # Create a finite state machine (FSM)
     sm = StateMachine(outcomes=[SUCCEED, "success", "failed", CANCEL, ABORT])
     yasmin.YASMIN_LOG_INFO("person_recognition_sm started")
+
+    sm.add_state(
+        "CAM_OFF",
+        USBCamOff(),
+        transitions={
+            SUCCEED: "SET_INIT_POSE",
+            ABORT: "failed"
+        }
+    )
+
     sm.add_state(
         "SET_INIT_POSE",
         SetInitialPose(node, 0.0, 0.0, 0.0),
@@ -37,10 +53,19 @@ def main():
         "TTS_INITIATING",
         CoquiTTSState(),
         transitions={
-            SUCCEED: "TTS_COME_IN",
+            SUCCEED: "START_CAM_FIND_OPERATOR_ALONE",
             CANCEL: "failed",
         },
         remappings = {"tts_text" : "tts-initiate_task"}   
+    )
+
+    sm.add_state(
+        "START_CAM_FIND_OPERATOR_ALONE",
+        USBCamOn(),
+        transitions={
+            SUCCEED: "TTS_COME_IN",
+            ABORT: "failed"
+        }
     )
 
     sm.add_state(
@@ -59,6 +84,7 @@ def main():
         transitions={
             SUCCEED: "TTS_GREET",
             CANCEL: "FIND_OPERATOR_ALONE",
+            'not_detected': "FIND_OPERATOR_ALONE",
             ABORT: "failed",
         },
         remappings={"objects": "person"}
@@ -81,7 +107,8 @@ def main():
             SUCCEED: "TTS_CONFIRM_NAME",
             CANCEL: "failed",
         },
-        remappings = {"tts_text" : "ask_name"}
+        remappings = {"tts_text" : "ask_name",
+                      'name':'operator'}
     )
 
     sm.add_state(
@@ -110,17 +137,34 @@ def main():
         transitions={
             SUCCEED: "TTS_PERSON_REGISTERED",
             CANCEL: "failed",
-        },           
+        },
+        remappings={"operator" : "name"}
     )
 
     sm.add_state(
         "TTS_PERSON_REGISTERED",
         CoquiTTSState(),
         transitions={
-            SUCCEED: "ROTATE_180_DEGREES",
+            SUCCEED: "START_CAM_FIND_OPERATOR_CROWD",
             CANCEL: "failed",
         },
         remappings = {"tts_text" : "tts-person_registered"}
+    )
+
+    sm.add_state(
+        "START_CAM_FIND_OPERATOR_CROWD",
+        USBCamOn(),
+        transitions={
+            SUCCEED: "30S_WAIT",
+            ABORT: "failed"
+        }
+    )
+    sm.add_state(
+        "30S_WAIT",
+        yasmin.CbState([SUCCEED],cb_wait),
+        transitions={
+            SUCCEED: "ROTATE_180_DEGREES",
+        }
     )
 
     sm.add_state(
@@ -137,7 +181,8 @@ def main():
         FindObjectState(action_server="/YOLO_batch_detection"),
         transitions={
             SUCCEED: "RECOGNITION_SM",
-            CANCEL: "RECOGNITION_SM",
+            CANCEL: CANCEL,
+            'not_detected': "RECOGNITION_SM",
             ABORT: "failed",
         },
         remappings={"objects": "person"}
@@ -173,6 +218,7 @@ def main():
     blackboard["batch_size"] = 50
     blackboard["person"] = "person"
     blackboard["rotate"] = 180
+    blackboard['n_pics'] = 3
     blackboard["people_count"] = 0
 
     # TTS blackboard variables for this task

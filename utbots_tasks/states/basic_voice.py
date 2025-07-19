@@ -47,6 +47,24 @@ class SendTTSState(ActionState):
         goal.request.text = blackboard["text"]
         return goal
 
+def whisper_process_cb(blackboard: Blackboard) -> str:
+    """
+    Retrieves the next waypoint from the list of random waypoints.
+
+    Updates the blackboard with the pose of the next waypoint.
+
+    Args:
+        blackboard (Blackboard): The blackboard instance holding current state data.
+
+    Returns:
+        str: Outcome indicating whether there is a next waypoint (HAS_NEXT) or if
+             navigation is complete (END).
+    """
+    if blackboard["whispered"] == "" or blackboard["whispered"] is None:
+        return "process_whisper1"#return to whisper
+
+    return "process_whisper2"#pass to NLU
+
 
 class WhisperSTTState(ActionState):
     """
@@ -366,24 +384,6 @@ def wait_cb(blackboard: Blackboard) -> str:
     from time import sleep
     sleep(1)
     return "waited"
-
-def whisper_process_cb(blackboard: Blackboard) -> str:
-    """
-    Retrieves the next waypoint from the list of random waypoints.
-
-    Updates the blackboard with the pose of the next waypoint.
-
-    Args:
-        blackboard (Blackboard): The blackboard instance holding current state data.
-
-    Returns:
-        str: Outcome indicating whether there is a next waypoint (HAS_NEXT) or if
-             navigation is complete (END).
-    """
-    if blackboard["whispered"] == "" or blackboard["whispered"] is None:
-        return "process_whisper1"#return to whisper
-
-    return "process_whisper2"#pass to NLU
 
 PROCESS_NLU=[ 
     "greet",                # 0

@@ -91,8 +91,14 @@ class CrowdLogState(State):
             cv2.imwrite(image_filename, cv_image)
             c.drawImage(image_filename, x=85, y=440, width=6*inch, height=4.5*inch)
 
-            ### DRAW FACE BOUNDING BOXES
-
+            face_detection = blackboard['recognized_img']
+            # Save recognized face image temporarily
+            face_image = self.bridge.imgmsg_to_cv2(face_detection, desired_encoding='bgr8')
+            face_image_filename = "/tmp/crowd_face_log_img.jpg"
+            cv2.imwrite(face_image_filename, face_image)
+            c.drawString(100, 420 - 15, "Recognized Faces Image:")
+            c.drawImage(face_image_filename, x=85, y=200, width=6*inch, height=2.5*inch)
+            
             c.showPage()
             return SUCCEED
 
