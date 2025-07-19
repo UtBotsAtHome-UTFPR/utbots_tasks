@@ -213,24 +213,24 @@ def main():
     # Create a finite state machine (FSM)
     single_guest_routine_sm = StateMachine(outcomes=[SUCCEED, "success", "failed", CANCEL])
 
-    single_guest_routine_sm.add_state(
-        "SET_INIT_POSE",
-        SetInitialPose(node, 0.0, 0.0, 0.0),
-        transitions={
-            SUCCEED: "WAIT_DOOR",
-            ABORT: "failed"
-        }
-    )
+    # single_guest_routine_sm.add_state(
+    #     "SET_INIT_POSE",
+    #     SetInitialPose(node, 0.0, 0.0, 0.0),
+    #     transitions={
+    #         SUCCEED: "WAIT_DOOR",
+    #         ABORT: "failed"
+    #     }
+    # )
 
-    single_guest_routine_sm.add_state(
-        "WAIT_DOOR",
-        WaitDoorOpenState(),
-        transitions={
-            SUCCEED: "COME_IN",
-            CANCEL: "WAIT_DOOR",
-            ABORT: "failed"
-        }
-    )
+    # single_guest_routine_sm.add_state(
+    #     "WAIT_DOOR",
+    #     WaitDoorOpenState(),
+    #     transitions={
+    #         SUCCEED: "COME_IN",
+    #         CANCEL: "WAIT_DOOR",
+    #         ABORT: "failed"
+    #     }
+    # )
 
     single_guest_routine_sm.add_state(
         "COME_IN",
@@ -570,13 +570,13 @@ def main():
     blackboard["person"] = "person"
     blackboard["rotate"] = 45
     blackboard['yaml_path'] = '/home/ehg2004/utbots_ws/src/utbots_navigation/utbots_nav/map/arena_filled_waypoints.yaml'
-    blackboard['waypoint_room'] = 'receptionist_bar'
+    blackboard['waypoint_room'] = 'room_bar_kitchen'
 
     blackboard["bedroom"] = "bedroom"
     blackboard["kitchen"] = "kitchen"
-    blackboard["living_room"] = "receptionist_greet"
+    blackboard["living_room"] = "room_bar_kitchen"
     # blackboard["room"] = "receptionist_bar" #bedroom_to_table
-    blackboard["room"] = "bedroom_to_table"
+    blackboard["room"] = "room_bar_kitchen"
     # TTS blackboard variables for this task
     blackboard["come_in"] = "Hello,please come in."
     blackboard["greet"] = "I am Hestia." 
@@ -586,7 +586,7 @@ def main():
     blackboard["tts_text"] = "come_in."
     blackboard["name"]= None
     blackboard["drink"]=None
-    blackboard["all_objects"]=['drinks-drinks-cofee', 'drinks-coke', 'drinks-fanta', 'drinks-kuat', 'drinks-milk', 'drinks-orange_juice']
+    blackboard["all_objects"]=['drinks-coffee', 'drinks-coke', 'drinks-fanta', 'drinks-kuat', 'drinks-milk', 'drinks-orange_juice']
 
     blackboard["person_list"]=[]
     blackboard["interested_in"]="robotics"

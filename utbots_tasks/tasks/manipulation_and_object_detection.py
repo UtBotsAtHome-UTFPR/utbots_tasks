@@ -25,7 +25,7 @@ def main():
         "TTS_INITIATING_TASK",
         CoquiTTSState(),
         transitions={
-            SUCCEED: "FIND_OBJECTS",
+            SUCCEED: "GO_TO_COLLECTION_LOCATION",
             CANCEL: CANCEL,
         },
         remappings={"tts_text": "tts-initiating_task"}
@@ -35,7 +35,7 @@ def main():
         "GO_TO_COLLECTION_LOCATION",
         GoToWaypointState(),
         transitions={
-            SUCCEED: "TTS_INITIATING_TASK",
+            SUCCEED: "FIND_OBJECTS",
             ABORT: ABORT
         },
         remappings={"waypoint_nametag": "wp-object_collection", "yaml_path": "yaml_path"}
@@ -65,9 +65,19 @@ def main():
         "DETECTION_LOG",
         DetectionLogState(),
         transitions={
-            SUCCEED: SUCCEED,
+            SUCCEED: "TTS_SAVING_LOG",
             ABORT: ABORT
         },
+    )
+    
+    sm.add_state(
+        "TTS_SAVING_LOG",
+        CoquiTTSState(),
+        transitions={
+            SUCCEED: SUCCEED,
+            CANCEL: CANCEL,
+        },
+        remappings={"tts_text": "tts-saving_log"}
     )
 
     # IF NOT_DETECTED, REPEAT FIND OBJECTS FOR A NUMBER OF TIMES
@@ -96,12 +106,13 @@ def main():
     blackboard["batch_size"] = 50
     blackboard["objects"] = []
     blackboard['yaml_path'] = '/home/ehg2004/utbots_ws/src/utbots_navigation/utbots_nav/map/arena_filled_waypoints.yaml'
-    blackboard['wp-object_collection'] = 'receptionist_bar'
+    blackboard['wp-object_collection'] = 'room_bar_kitchen'
     blackboard['iterations'] = 3  # Number of iterations for retrying object detection
     # blackboard['wp-object_collection'] = 'object_collection'
 
     # TTS blackboard variables for this task
     blackboard["tts-initiating_task"] = "Initiating manipulation and object recognition task."
+    blackboard["tts-saving_log"] = "Objects detected. saving log."
 
     try:
         outcome = sm(blackboard)

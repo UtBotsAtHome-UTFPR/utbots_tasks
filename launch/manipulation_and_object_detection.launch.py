@@ -10,8 +10,8 @@ import os
 
 def generate_launch_description():
     # Paths to other launch files
-    # nav_launch_path = os.path.join(
-    #     get_package_share_directory('utbots_nav'), 'launch', 'nav.launch.py')
+    nav_launch_path = os.path.join(
+        get_package_share_directory('utbots_nav'), 'launch', 'nav.launch.py')
 
     stt_launch_dir = os.path.join(
         get_package_share_directory('vad_ros'), 'launch')
@@ -21,14 +21,14 @@ def generate_launch_description():
     return LaunchDescription([
  
         # Include utbots_nav launch file with arguments
-        # IncludeLaunchDescription(
-        #     PythonLaunchDescriptionSource(nav_launch_path),
-        #     launch_arguments={
-        #         'use_sim_time': 'false',
-        #         'use_imu': 'false',
-        #         'map': '/home/laser/ros2_ws/src/utbots_navigation/utbots_nav/map/arena_filled.yaml'
-        #     }.items()
-        # ),
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(nav_launch_path),
+            launch_arguments={
+                'use_sim_time': 'false',
+                'use_imu': 'false',
+                'map': '/home/laser/ros2_ws/src/utbots_navigation/utbots_nav/map/arena_filled.yaml'
+            }.items()
+        ),
 
         # Launch yolov8_ros yolo_node
         Node(
@@ -37,7 +37,8 @@ def generate_launch_description():
             name='yolo_node',
             output='screen',
             parameters=[{
-                'camera_topic': '/image_raw'
+                'camera_topic': '/image_raw',
+                'weights': '/home/ehg2004/Downloads/best.pt'
             }]
         ),
 
@@ -48,9 +49,9 @@ def generate_launch_description():
             name='usb_cam',
             output='screen',
             parameters=[{
-                'video_device': '/dev/video0', # for laptop cam, 2 for usb cam
-                # 'image_height': 1080,
-                # 'image_width': 1920
+                'video_device': '/dev/video2', # for laptop cam, 2 for usb cam
+                'image_height': 1080,
+                'image_width': 1920
             }]
         ),
 

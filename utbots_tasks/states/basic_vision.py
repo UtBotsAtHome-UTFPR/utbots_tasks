@@ -15,7 +15,7 @@ class FindObjectState(ActionState):
         action_server (str : "YOLO_batch_detection"): address of the YOLO action server
         verbose (bool : False): show debug information
     """
-    def __init__(self, action_server="YOLO_batch_detection", verbose=False) ->None:
+    def __init__(self, action_server="YOLO_batch_detection", verbose=False,) ->None:
         super().__init__(
             YOLOBatchDetection,
             action_server,
