@@ -11,7 +11,7 @@ from yasmin_viewer import YasminViewerPub
 
 from utbots_tasks.states.basic_face import RecognitionState, NewFaceState, generate_new_face_sm, generate_recognition_sm, IdentifyYAW, SavePosition, CheckContinuation, get_people_position_sm
 
-from utbots_tasks.states.basic_nav import GetCurrentPoseState, generate_rotate_in_place, GoToWaypointState, WaitDoorOpenState, SetInitialPose
+from utbots_tasks.states.basic_nav import GetCurrentPoseState, generate_rotate_in_place, GoToWaypointState, GoToState, WaitDoorOpenState, SetInitialPose
 
 from utbots_tasks.states.basic_vision import FindObjectState
 
@@ -59,7 +59,7 @@ class PointToObjectState(State):
             blackboard["tts_text"] = response
             return CANCEL
 
-class GenerateGreeting(State):
+class Greeting(State):
     def __init__(self) -> None:
         super().__init__([SUCCEED, "speak", "move"])
         greet = []
@@ -70,13 +70,32 @@ class GenerateGreeting(State):
     def execute(self, blackboard: Blackboard) -> str:
         self.it += 1
         if self.it == 0:
-            blackboard["pose"] = self.person1
+            blackboard["pose"] = self.person_one.pose
             return "move"
         elif self.it == 1:
-            blackboard[""]
-        
-
-
+            blackboard["tts_text"] = f"Hello,{self.person_one.name}.I am hestia,I am now going to show you the other guest."
+            return "speak"
+        elif self.it == 2:
+            blackboard['pose'] = self.person_two.pose
+            return "move"
+        elif self.it == 3:
+            blackboard['tts_text'] = f"This is {self.person_two.name},they like drinking {self.person_two.drink}."
+            if "interest" in self.person_two:
+                blackboard['tts_text'] += f"And they are interested in {self.person_two_interest}."
+            blackboard['tts_text'] += f'Hello {self.person_two.name}.I am hestia,I am now going to show you {self.person_one.name}'
+            return "speak"
+        elif self.it == 4:
+            blackboard['pose'] = self.person_one.pose
+            return "move"
+        elif self.it == 5:
+            blackboard['tts_text'] = f"This is {self.person_one.name},they like drinking {self.person_one.drink}."
+            if "interest" in self.person_two:
+                blackboard['tts_text'] += f"Also, they are interested in {self.person_one_interest}."
+            return "speak"
+        elif self.it == 5:
+            blackboard['tts_text'] = f"It was a pleasure to meet you all,I am now going to sleep."
+            return "speak"
+        return SUCCEED
 
 class PointOrderState(State):
     def __init__(self) -> None:
@@ -543,6 +562,34 @@ def main():
         transitions={
             SUCCEED: SUCCEED,
             ABORT: ABORT # Look at direction you know no one is in and ask guest/s to go to this position
+        }
+    )
+
+    sm.add_state(
+        "GREETING",
+        Greeting(),
+        transitions={
+            "move":"LOOK_AT_PERSON",
+            "speak":"SPEAK_TO_GUEST",
+            SUCCEED:SUCCEED
+        }
+    )
+
+    sm.add_state(
+        "LOOK_AT_PERSON",
+        GoToState(),
+        transitions={
+            SUCCEED: "GREETING",
+            ABORT: "failed"
+        }
+    )
+    
+    sm.add_state(
+        "SPEAK_TO_GUEST",
+        CoquiTTSState(),
+        transitions={
+            SUCCEED: "GREETING",
+            CANCEL:ABORT
         }
     )
 
