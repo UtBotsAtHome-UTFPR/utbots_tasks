@@ -245,12 +245,13 @@ def main():
 
     single_guest_routine_sm.add_state(
         "FIND_OPERATOR_AT_DOOR",
-        FindObjectState(remappings={"objects": "person", "detections": "bboxes2"}, action_server="/yolo_node1/YOLO_batch_detection"),
+        FindObjectState(action_server="/yolo_node1/YOLO_batch_detection"),
         transitions={
             SUCCEED: "GREET",
             CANCEL: "FIND_OPERATOR_AT_DOOR",
             ABORT: "failed",
-        }
+        },
+        remappings={"objects": "person", "detections": "bboxes2"}
     )
 
     single_guest_routine_sm.add_state(
@@ -363,12 +364,13 @@ def main():
 
     single_guest_routine_sm.add_state(
         "FIND_BEVERAGE",
-        FindObjectState(remappings={"objects": "all_objects"}, action_server="/yolo_node2/YOLO_batch_detection"),
+        FindObjectState(action_server="/yolo_node2/YOLO_batch_detection"),
         transitions={
             SUCCEED: "POINT_TO_BEVERAGE",
             CANCEL: "ASK_FOLLOW_LIVING_ROOM",
             ABORT: "failed"
-        }
+        },
+        remappings={"objects": "all_objects"}
     )
 
     single_guest_routine_sm.add_state(
@@ -425,22 +427,24 @@ def main():
 
     single_guest_routine_sm.add_state(
         "FIND_PEOPLE",
-        FindObjectState(remappings={"objects": "person", "detections": "bboxes2"}, action_server="/yolo_node1/YOLO_batch_detection"),
+        FindObjectState(action_server="/yolo_node1/YOLO_batch_detection"),
         transitions={
             SUCCEED: "FIND_SEAT",
             CANCEL: "FIND_SEAT",
             ABORT: "failed",
-        }
+        },
+        remappings={"objects": "person", "detections": "bboxes2"}
     )
 
     single_guest_routine_sm.add_state(
         "FIND_SEAT",
-        FindObjectState(remappings={"objects": "seat", "detections": "bboxes1"}, action_server="/yolo_node1/YOLO_batch_detection"),
+        FindObjectState(action_server="/yolo_node1/YOLO_batch_detection"),
         transitions={
             SUCCEED: "FIND_BEST_SEAT",
             CANCEL: "ROTATE_IN_SEATING",
             ABORT: "failed"
-        }
+        },
+        remappings={"objects": "seat", "detections": "bboxes1"}
     )
 
     single_guest_routine_sm.add_state(
