@@ -58,7 +58,26 @@ class PointToObjectState(State):
             yasmin.YASMIN_LOG_INFO(response)
             blackboard["tts_text"] = response
             return CANCEL
+
+class GenerateGreeting(State):
+    def __init__(self) -> None:
+        super().__init__([SUCCEED, "speak", "move"])
+        greet = []
+        self.person_one = Blackboard["person_list"][0]
+        self.person_two = Blackboard["person_list"][1]
+        self.it = -1
+
+    def execute(self, blackboard: Blackboard) -> str:
+        self.it += 1
+        if self.it == 0:
+            blackboard["pose"] = self.person1
+            return "move"
+        elif self.it == 1:
+            blackboard[""]
         
+
+
+
 class PointOrderState(State):
     def __init__(self) -> None:
         super().__init__([SUCCEED, CANCEL])
@@ -248,15 +267,6 @@ def main():
     single_guest_routine_sm = StateMachine(outcomes=[SUCCEED, "success", "failed", CANCEL])
 
     # single_guest_routine_sm.add_state(
-    #     "SET_INIT_POSE",
-    #     SetInitialPose(node, 0.0, 0.0, 0.0),
-    #     transitions={
-    #         SUCCEED: "WAIT_DOOR",
-    #         ABORT: "failed"
-    #     }
-    # )
-
-    # single_guest_routine_sm.add_state(
     #     "WAIT_DOOR",
     #     WaitDoorOpenState(),
     #     transitions={
@@ -312,10 +322,7 @@ def main():
         "CONFIRM_NAME",
         CoquiTTSState(),
         transitions={
-            # SUCCEED: "NEW_FACE_SM",
             SUCCEED: "ASK_INTERESTED_IN",
-            # SUCCEED: "REGISTER_PERSON",
-            # SUCCEED: "ASK_FOLLOW",
             CANCEL: "failed",
         },
     )
@@ -324,12 +331,10 @@ def main():
         "ASK_INTERESTED_IN",
         ask_interested_in_sm(),
         transitions={
-            # SUCCEED: "REGISTER_PERSON",
             SUCCEED: "NEW_FACE_SM",
             CANCEL: "failed",
         }
     )
-
 
     single_guest_routine_sm.add_state(
         "NEW_FACE_SM",
@@ -340,14 +345,11 @@ def main():
         },           
     )
 
-    
-
     single_guest_routine_sm.add_state(
         "ASK_FOLLOW",
         CoquiTTSState(),
         transitions={
             SUCCEED: "GO_TO_BAR",
-            # SUCCEED: "ASK_DRINK",
             CANCEL: "failed",
         },
         remappings = {"tts_text" : "ask_follow"}
@@ -369,32 +371,29 @@ def main():
         "ASK_DRINK",
         generate_ask_drink_sm(),
         transitions={
-            # SUCCEED: "FIND_BEVERAGE",
-            SUCCEED: "REGISTER_PERSON",
+            SUCCEED: "CONFIRM_DRINK",
             CANCEL: "failed",
         },
         remappings = {"tts_text" : "ask_drink"}
     )
 
     single_guest_routine_sm.add_state(
-        "REGISTER_PERSON",
+        "CONFIRM_DRINK",
+        CoquiTTSState(),
+        transitions={
+            SUCCEED: "REGISTER_PERSON_DATA",
+            CANCEL: "failed",
+        },
+    )
+
+    single_guest_routine_sm.add_state(
+        "REGISTER_PERSON_DATA",
         Register(True),
         transitions={
-            # SUCCEED: "ASK_FOLLOW_LIVING_ROOM",
             SUCCEED: "FIND_BEVERAGE",
             CANCEL: "failed",
         }
     )
-
-    # single_guest_routine_sm.add_state(
-    #     "CONFIRM_DRINK",
-    #     CoquiTTSState(),
-    #     transitions={
-    #         SUCCEED: "FIND_BEVERAGE",
-    #         # SUCCEED: "DRINK_POSITION_TTS",
-    #         CANCEL: "failed",
-    #     },
-    # )
 
     single_guest_routine_sm.add_state(
         "FIND_BEVERAGE",
@@ -431,7 +430,6 @@ def main():
         "ASK_FOLLOW_LIVING_ROOM",
         CoquiTTSState(),
         transitions={
-            # SUCCEED: "GO_TO_LIVING_ROOM",
             SUCCEED: "GO_TO_LIVING_ROOM",
             CANCEL: "failed",
         },
@@ -521,12 +519,12 @@ def main():
     ),
 
     sm.add_state(
-    "CHECK_GUEST_COUNT",
-    CheckGuestCountState(),
-    transitions={
-        SUCCEED: "RECOGNITION_SM",
-        CANCEL: "GO_TO_GREET"
-    }
+        "CHECK_GUEST_COUNT",
+        CheckGuestCountState(),
+        transitions={
+            SUCCEED: "GET_PEOPLE_POSITION",
+            CANCEL: "GO_TO_GREET"
+        }
     )
 
     sm.add_state(

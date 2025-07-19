@@ -11,13 +11,23 @@ from utbots_tasks.states.basic_voice import CoquiTTSState, get_process_nlu, gene
 from utbots_tasks.states.basic_vision import FindObjectState
 from utbots_tasks.states.logs import CrowdLogState
 
-# PROCESS_NLU=get_process_nlu()
+## UPGRADES TODO:
+# - Show person face image feedback in the screen
+# - Generate person point and navigate to the front of the operator
+
+def cb_tts_log(blackboard: Blackboard): 
+    people_count = blackboard["people_count"]
+    blackboard["tts_text"] = f"The log has been saved successfully. Found {people_count} people in the crowd."
+    return SUCCEED
+
+def cb_save_operator_name(blackboard: Blackboard):
+    blackboard['operator'] = blackboard['name']
+    return SUCCEED
 
 def cb_wait(blackboard: Blackboard):
     import time
     time.sleep(15)
     return SUCCEED
-
 
 def main():
     yasmin.YASMIN_LOG_INFO("person_recognition_sm started")
@@ -28,7 +38,7 @@ def main():
     set_ros_loggers()
 
     # Create a finite state machine (FSM)
-    sm = StateMachine(outcomes=[SUCCEED, "success", "failed", CANCEL, ABORT])
+    sm = StateMachine(outcomes=[SUCCEED, CANCEL, ABORT])
     yasmin.YASMIN_LOG_INFO("person_recognition_sm started")
 
     sm.add_state(
@@ -36,7 +46,7 @@ def main():
         USBCamOff(),
         transitions={
             SUCCEED: "SET_INIT_POSE",
-            ABORT: "failed"
+            ABORT: ABORT
         }
     )
 
@@ -45,7 +55,7 @@ def main():
         SetInitialPose(node, 0.0, 0.0, 0.0),
         transitions={
             SUCCEED: "TTS_INITIATING",
-            ABORT: "failed"
+            ABORT: ABORT
         }
     )
 
@@ -54,7 +64,7 @@ def main():
         CoquiTTSState(),
         transitions={
             SUCCEED: "START_CAM_FIND_OPERATOR_ALONE",
-            CANCEL: "failed",
+            CANCEL: ABORT,
         },
         remappings = {"tts_text" : "tts-initiate_task"}   
     )
@@ -64,7 +74,7 @@ def main():
         USBCamOn(),
         transitions={
             SUCCEED: "TTS_COME_IN",
-            ABORT: "failed"
+            ABORT: ABORT
         }
     )
 
@@ -73,7 +83,7 @@ def main():
         CoquiTTSState(),
         transitions={
             SUCCEED: "FIND_OPERATOR_ALONE",
-            CANCEL: "failed",
+            CANCEL: ABORT,
         },
         remappings = {"tts_text" : "tts-come_in"}   
     )
@@ -85,7 +95,7 @@ def main():
             SUCCEED: "TTS_GREET",
             CANCEL: "FIND_OPERATOR_ALONE",
             'not_detected': "FIND_OPERATOR_ALONE",
-            ABORT: "failed",
+            ABORT: ABORT,
         },
         remappings={"objects": "person"}
     )
@@ -95,7 +105,7 @@ def main():
         CoquiTTSState(),
         transitions={
             SUCCEED: "ASK_NAME",
-            CANCEL: "failed",
+            CANCEL: ABORT,
         },
         remappings = {"tts_text" : "tts-greet"}   
     )
@@ -104,11 +114,19 @@ def main():
         "ASK_NAME",
         generate_ask_name_sm(),
         transitions={
-            SUCCEED: "TTS_CONFIRM_NAME",
-            CANCEL: "failed",
+            SUCCEED: "SAVE_OPERATOR_NAME",
+            CANCEL: ABORT,
         },
-        remappings = {"tts_text" : "ask_name",
-                      'name':'operator'}
+        remappings = {"tts_text" : "ask_name"}
+    )
+
+    sm.add_state(
+        "SAVE_OPERATOR_NAME",
+        yasmin.CbState([SUCCEED], cb_save_operator_name),
+        transitions={
+            SUCCEED: "TTS_CONFIRM_NAME",
+            CANCEL: ABORT,
+        },
     )
 
     sm.add_state(
@@ -116,7 +134,7 @@ def main():
         CoquiTTSState(),
         transitions={
             SUCCEED: "TTS_INSTRUCT_REGISTER_FACE",
-            CANCEL: "failed",
+            CANCEL: ABORT,
         },
         # tts_text is set by last state
     )
@@ -126,7 +144,7 @@ def main():
         CoquiTTSState(),
         transitions={
             SUCCEED: "NEW_FACE_SM",
-            CANCEL: "failed",
+            CANCEL: ABORT,
         },
         remappings = {"tts_text" : "tts-instruct_register_face"}
     )
@@ -136,7 +154,7 @@ def main():
         generate_new_face_sm(),
         transitions={
             SUCCEED: "TTS_PERSON_REGISTERED",
-            CANCEL: "failed",
+            CANCEL: ABORT,
         },
         remappings={"operator" : "name"}
     )
@@ -146,7 +164,7 @@ def main():
         CoquiTTSState(),
         transitions={
             SUCCEED: "START_CAM_FIND_OPERATOR_CROWD",
-            CANCEL: "failed",
+            CANCEL: ABORT,
         },
         remappings = {"tts_text" : "tts-person_registered"}
     )
@@ -156,7 +174,7 @@ def main():
         USBCamOn(),
         transitions={
             SUCCEED: "30S_WAIT",
-            ABORT: "failed"
+            ABORT: ABORT
         }
     )
     sm.add_state(
@@ -172,7 +190,7 @@ def main():
         generate_rotate_in_place(node),
         transitions={
             SUCCEED: "FIND_PEOPLE",
-            ABORT: "failed"
+            ABORT: ABORT
         },
     )
 
@@ -183,7 +201,7 @@ def main():
             SUCCEED: "RECOGNITION_SM",
             CANCEL: CANCEL,
             'not_detected': "RECOGNITION_SM",
-            ABORT: "failed",
+            ABORT: ABORT,
         },
         remappings={"objects": "person"}
     )
@@ -201,12 +219,27 @@ def main():
         "GENERATE_LOG",
         CrowdLogState(),
         transitions={
-            SUCCEED: SUCCEED,
+            SUCCEED: "WRITE_TTS_LOG",
             ABORT: ABORT,
         },
     )
 
-    ## GENERATE PERSON POINT AND NAVIGATE IN FRONT OF IT
+    sm.add_state(
+        "WRITE_TTS_LOG",
+        yasmin.CbState([SUCCEED], cb_tts_log),
+        transitions={
+            SUCCEED: "TTS_LOG_SAVED",
+        },
+    )
+
+    sm.add_state(
+        "TTS_LOG_SAVED",
+        CoquiTTSState(),
+        transitions={
+            SUCCEED: SUCCEED,
+            CANCEL: ABORT,
+        },
+    )
 
     # Publish FSM information
     YasminViewerPub("PERSONAL_RECOGNITION_SM", sm)
@@ -229,7 +262,6 @@ def main():
     blackboard["ask_name"] = "What is your name?"
     blackboard["tts-instruct_register_face"] = "Please stand still and face me while I register your face."
     blackboard["tts-person_registered"] = "Your face has been registered successfully. Please go to the crowd. I will turn in 30 seconds."
-    
     try:
         outcome = sm(blackboard)
         yasmin.YASMIN_LOG_INFO(outcome)
