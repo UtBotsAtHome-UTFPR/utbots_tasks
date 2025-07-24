@@ -32,7 +32,7 @@ def generate_launch_description():
             launch_arguments={
                 'use_sim_time': 'false',
                 'use_imu': 'false',
-                'map': '/home/ehg2004/utbots_ws/src/utbots_navigation/utbots_nav/map/arena_filled.yaml'
+                'map': '/home/laser/ros2_ws/src/utbots_navigation/utbots_nav/map/arena_filled.yaml'
             }.items()
         ),
 
@@ -60,11 +60,12 @@ def generate_launch_description():
         Node(
             package='yolov8_ros',
             executable='yolo_node',
-            name='yolo_node',
+            name='yolo_node1',
             namespace='yolo_node1',
             output='screen',
             parameters=[{
-                'camera_topic': '/camera/camera/color/image_raw'
+                'camera_topic': '/camera/camera/color/image_raw',
+                'weights': '/home/laser/ros2_ws/src/yolo11n.pt'
             }]
         ),
 
@@ -72,12 +73,12 @@ def generate_launch_description():
         Node(
             package='yolov8_ros',
             executable='yolo_node',
-            name='yolo_node',
+            name='yolo_node2',
             namespace='yolo_node2',
             output='screen',
             parameters=[{
                 'camera_topic': '/camera/camera/color/image_raw',
-                'weights': '/home/laser/Downloads/best.pt'
+                'weights': '/home/laser/Downloads/best_drinks.pt'
             }]
         ),
 

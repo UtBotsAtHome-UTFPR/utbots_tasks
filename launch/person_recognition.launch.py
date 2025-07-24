@@ -29,7 +29,7 @@ def generate_launch_description():
             launch_arguments={
                 'use_sim_time': 'false',
                 'use_imu': 'false',
-                'map': '/home/ehg2004/utbots_ws/src/utbots_navigation/utbots_nav/map/arena_filled.yaml'
+                'map': '/home/laser/ros2_ws/src/utbots_navigation/utbots_nav/map/arena_filled.yaml'
             }.items()
         ),
 

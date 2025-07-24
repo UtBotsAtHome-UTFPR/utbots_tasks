@@ -59,8 +59,9 @@ class FindObjectState(ActionState):
         
         if self.verbose:
             yasmin.YASMIN_LOG_INFO(f"[DEBUG] Detections: ")
-            for detection in detections:
-                yasmin.YASMIN_LOG_INFO(f"[DEBUG] {detection}")
+            # for detection in detections:
+        
+        yasmin.YASMIN_LOG_INFO(f"[DEBUG] {detections}")
         
         return SUCCEED if detections else "not_detected"
     
