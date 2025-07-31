@@ -1,6 +1,7 @@
 #!/bin/bash
 
 set -euo pipefail
+export AMENT_TRACE_SETUP_FILES=""
 
 # Usage:
 #   ./install_repos.sh repos.txt /path/to/install/dir [optional:/path/to/venvs] [--setup-cfg]
