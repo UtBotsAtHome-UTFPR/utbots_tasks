@@ -45,19 +45,19 @@ def main():
         "CAM_OFF",
         USBCamOff(),
         transitions={
-            SUCCEED: "SET_INIT_POSE",
+            SUCCEED: "TTS_INITIATING",#"SET_INIT_POSE",
             ABORT: ABORT
         }
     )
 
-    sm.add_state(
-        "SET_INIT_POSE",
-        SetInitialPose(node, 0.0, 0.0, 0.0),
-        transitions={
-            SUCCEED: "TTS_INITIATING",
-            ABORT: ABORT
-        }
-    )
+    # sm.add_state(
+    #     "SET_INIT_POSE",
+    #     SetInitialPose(node, 0.0, 0.0, 0.0),
+    #     transitions={
+    #         SUCCEED: "TTS_INITIATING",
+    #         ABORT: ABORT
+    #     }
+    # )
 
     sm.add_state(
         "TTS_INITIATING",
@@ -90,7 +90,7 @@ def main():
 
     sm.add_state(
         "FIND_OPERATOR_ALONE",
-        FindObjectState(action_server="/YOLO_batch_detection"),
+        FindObjectState(action_server="/yolo_node1/YOLO_batch_detection"),
         transitions={
             SUCCEED: "TTS_GREET",
             CANCEL: "FIND_OPERATOR_ALONE",
@@ -122,7 +122,7 @@ def main():
 
     sm.add_state(
         "SAVE_OPERATOR_NAME",
-        yasmin.CbState([SUCCEED], cb_save_operator_name),
+        yasmin.CbState([SUCCEED, CANCEL], cb_save_operator_name),
         transitions={
             SUCCEED: "TTS_CONFIRM_NAME",
             CANCEL: ABORT,
@@ -196,7 +196,7 @@ def main():
 
     sm.add_state(
         "FIND_PEOPLE",
-        FindObjectState(action_server="/YOLO_batch_detection"),
+        FindObjectState(action_server="/yolo_node1/YOLO_batch_detection"),
         transitions={
             SUCCEED: "RECOGNITION_SM",
             CANCEL: CANCEL,

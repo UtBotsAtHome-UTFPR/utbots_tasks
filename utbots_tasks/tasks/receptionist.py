@@ -9,7 +9,7 @@ from yasmin_ros import set_ros_loggers
 from yasmin_ros.basic_outcomes import SUCCEED, ABORT, CANCEL
 from yasmin_viewer import YasminViewerPub
 
-from utbots_tasks.states.basic_face import RecognitionState, NewFaceState, generate_new_face_sm, generate_recognition_sm, IdentifyYAW, SavePosition, CheckContinuation, get_people_position_sm
+from utbots_tasks.states.basic_face import RecognitionState, NewFaceState, generate_new_face_sm, generate_recognition_sm, IdentifyYAW, SavePosition, CheckContinuation, get_people_position_sm, USBCamOn
 
 from utbots_tasks.states.basic_nav import GetCurrentPoseState, generate_rotate_in_place, GoToWaypointState, GoToState, WaitDoorOpenState, SetInitialPose
 
@@ -204,6 +204,7 @@ class CalculateIOUsState(State):
                         print(iou)
                         if iou < min_iou:
                             min_iou = iou
+
                             best_pair = (box1, box2)
                 print(f"IOU: {min_iou}")
                 if min_iou > blackboard["iou_threshold"]:
@@ -275,15 +276,14 @@ def main():
     blackboard["seat"] = ["chair","sofa","couch"]
     blackboard["person"] = "person"
     blackboard["rotate"] = 45
-    blackboard['yaml_path'] = '/home/laser/ros2_ws/src/utbots_navigation/utbots_nav/map/arena_filled_waypoints.yaml'
-    blackboard['waypoint_room'] = 'room_bar_kitchen'
+    blackboard['yaml_path'] = '/home/segalle/ros2_ws/src/utbots_navigation/utbots_nav/map/pitaco_waypoints.yaml'
     blackboard["drink"] = 'drinks-milk'
     blackboard["detections"] = None
 
     # blackboard["bedroom"] = "bedroom"
     # blackboard["kitchen"] = "kitchen"
-    blackboard["living_room"] = "receptionist_greet"
-    blackboard["room"] = "receptionist_bar" #bedroom_to_table
+    blackboard["living_room"] = "living_room"
+    blackboard["room"] = "kitchen" #bedroom_to_table
     # blackboard["room"] = "room_bar_kitchen"
     # TTS blackboard variables for this task
     blackboard["come_in"] = "Hello,please come in."
@@ -292,7 +292,7 @@ def main():
     blackboard["ask_drink"] = "What drink would you like."
     blackboard["ask_follow"] = "Please follow me."
     blackboard["tts_text"] = "come_in."
-    blackboard["tts-initiate_task"] = "Initiating person recognition task."
+    blackboard["tts-initiate_task"] = "Initiating receptionist task."
     blackboard["tts-instruct_register_face"] = "Please stand still and face me while I register your face."
     blackboard["name"]= None
     # blackboard["drink"]=None
@@ -334,11 +334,20 @@ def main():
         "COME_IN",
         CoquiTTSState(),
         transitions={
-            SUCCEED: "FIND_OPERATOR_AT_DOOR",
+            SUCCEED: "YOLO_CAM_ON",
             # SUCCEED: "GREET",
             CANCEL: "failed",
         },
         remappings = {"tts_text" : "come_in"}   
+    )
+
+    sm.add_state(
+        "YOLO_CAM_ON",
+        USBCamOn(),
+        transitions={
+            SUCCEED: "FIND_OPERATOR_AT_DOOR",
+            ABORT: ABORT,
+        }
     )
 
     sm.add_state(
@@ -456,7 +465,7 @@ def main():
         "REGISTER_PERSON_DATA",
         Register(True),
         transitions={
-            SUCCEED: "FIND_BEVERAGE",
+            SUCCEED: "ASK_FOLLOW_LIVING_ROOM",#FIND_BEVERAGE",
             CANCEL: "failed",
         }
     )
@@ -519,9 +528,18 @@ def main():
         "ROTATE_IN_SEATING",
         generate_rotate_in_place(node),
         transitions={
-            SUCCEED: "FIND_PEOPLE",
+            SUCCEED: "YOLO_SEAT_CAM_ON",
             ABORT: "failed"
         },
+    )
+
+    sm.add_state(
+        "YOLO_SEAT_CAM_ON",
+        USBCamOn(),
+        transitions={
+            SUCCEED:"FIND_PEOPLE",
+            ABORT:ABORT
+        }
     )
 
     sm.add_state(

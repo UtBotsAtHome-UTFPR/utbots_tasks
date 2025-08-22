@@ -1,11 +1,16 @@
 import rclpy
 import yasmin
-from yasmin import Blackboard, StateMachine
+from yasmin import Blackboard, StateMachine, State
 from yasmin_ros import ActionState, set_ros_loggers
 from yasmin_ros.basic_outcomes import SUCCEED, ABORT, CANCEL
 from utbots_actions.action import YOLOBatchDetection
 from std_msgs.msg import String, Int32, Float32
 from yasmin_viewer import YasminViewerPub
+from utbots_tasks.states.basic_face import USBCamOff, USBCamOn, RecognitionState
+from cv_bridge import CvBridge
+import cv2
+import time
+import numpy as np
 
 class FindObjectState(ActionState):
     """
@@ -46,7 +51,6 @@ class FindObjectState(ActionState):
         goal.iou_threshold.data = blackboard["iou_threshold"]
         goal.support_threshold = Float32()
         goal.support_threshold.data = blackboard["support_threshold"]
-        
         if self.verbose:
             yasmin.YASMIN_LOG_INFO(f"[DEBUG] Goal message: {goal}")
 
@@ -64,8 +68,163 @@ class FindObjectState(ActionState):
         yasmin.YASMIN_LOG_INFO(f"[DEBUG] {detections}")
         
         return SUCCEED if detections else "not_detected"
+
+
+class FramePerson(State):
+    def __init__(self) -> None:
+        super().__init__([SUCCEED, ABORT])
+        self.bridge = CvBridge()
+
+    def execute(self, blackboard: Blackboard) -> str:
+        # yasmin.YASMIN_LOG_INFO("Executing state FOO")
+        people = blackboard["people"] # Face recognition output
+        detections = blackboard["detections"] # Yolo output
+
+        img = blackboard["annotated_img"]
+        cv_image = self.bridge.imgmsg_to_cv2(img, desired_encoding="bgr8")
+
+        face_bbox = None
+        for person in people:
+            if person.id != "Unknown":
+                face_bbox = {}
+                face_bbox["xmin"] = person.xmin
+                face_bbox["xmax"] = person.xmax
+                face_bbox["ymin"] = person.ymin
+                face_bbox["ymax"] = person.ymax
+                face_bbox["name"] = person.id
+        
+        if not face_bbox:
+            return ABORT
+
+        people_bbox = []
+        for detection in detections:
+            people_bbox.append({})
+
+            people_bbox[-1]["xmin"] = detection.xmin
+            people_bbox[-1]["xmax"] = detection.xmax
+            people_bbox[-1]["ymin"] = detection.ymin
+            people_bbox[-1]["ymax"] = detection.ymax
+
+        # TODO: Pegando a primeira pq o yolo batch detection está quebrado, fazer iou da face e da bounding box yolo em x do topo em y até +- 2x altura da face
+        extracted_bbox = people_bbox[0]
+
+        h, w, a = cv_image.shape
+
+        mask = np.zeros((h, w), dtype=np.uint8)
+
+        mask[extracted_bbox["ymin"]:extracted_bbox["ymax"], extracted_bbox["xmin"]:extracted_bbox["xmax"]] = 255
+
+        mask_img = cv2.bitwise_and(cv_image, cv_image, mask=mask)
+        
+        identified_image = self.bridge.cv2_to_imgmsg(mask_img, encoding="bgr8")
+
+        # TODO: passar essa imagem pro mediapipe estimar a pose da pessoa
+        # cv2.imshow("img", mask_img)
+        # cv2.waitKey(0)
+
+        return SUCCEED
+
+def locate_person_from_face():
+    yasmin.YASMIN_LOG_INFO("locate_person_from_face_demo")
+    rclpy.init()
     
-def main():
+    node = rclpy.create_node("locate_person_from_face_sm")
+
+     # Set up ROS 2 logs
+    set_ros_loggers()
+
+    sm = StateMachine(outcomes=[SUCCEED, CANCEL, ABORT])
+
+    sm.add_state(
+        "USBCAM_ON_STATE",
+        USBCamOn(),
+        transitions={
+            SUCCEED: "RECOGNIZE",
+            ABORT: ABORT,
+        },
+    )
+
+    sm.add_state(
+        "RECOGNIZE",
+        RecognitionState(),
+        transitions={
+            SUCCEED: "FIND_PEOPLE",
+            ABORT: ABORT,
+        }
+    )
+
+    sm.add_state(
+        "FIND_PEOPLE",
+        FindObjectState(action_server="/yolo_node_coco/YOLO_batch_detection", verbose=True),
+        transitions={
+            SUCCEED: "USBCAM_OFF_STATE",
+            'not_detected': ABORT,
+            CANCEL: CANCEL,
+            ABORT: ABORT
+        }
+    )
+
+    sm.add_state(
+        "USBCAM_OFF_STATE",
+        USBCamOff(),
+        transitions={
+            SUCCEED: "FRAME_PERSON",
+            ABORT: ABORT,
+        },
+    )
+
+    sm.add_state(
+        "FRAME_PERSON",
+        FramePerson(),
+        transitions={
+            SUCCEED:"USBCAM_OFF_STATE2",
+            ABORT:ABORT
+        }
+    )
+
+    # Estado de identificar dentro de qual bbox está a face
+
+    # Estado para croppar a imagem de acordo
+
+    # Chamar mediapipe com a imagem cortada para pegar o ponto
+
+    # Talvez tenha que fazer coisas pra colocar a posição em relação ao robô
+
+    sm.add_state(
+        "USBCAM_OFF_STATE2",
+        USBCamOff(),
+        transitions={
+            SUCCEED: SUCCEED,
+            ABORT: ABORT,
+        },
+    )
+
+    blackboard = Blackboard()
+
+    # Face recognition variables
+    blackboard["person_name"] = "Teste"
+    blackboard['objects'] = ['person']
+
+    # Yolo variables
+    blackboard["batch_size"] = 10
+    blackboard["iou_threshold"] = 0.5
+    blackboard["support_threshold"] = 0.6
+
+    # Publish FSM information
+    YasminViewerPub("YASMIN_ACTION_CLIENT_DEMO", sm)
+
+    try:
+        outcome = sm(blackboard)
+        yasmin.YASMIN_LOG_INFO(outcome)
+    except KeyboardInterrupt:
+        if sm.is_running():
+            sm.cancel_state()  # Cancel the state if interrupted
+
+    # Shutdown ROS
+    if rclpy.ok():
+        rclpy.shutdown()
+    
+def find_seat_sm():
     yasmin.YASMIN_LOG_INFO("yasmin_action_client_demo")
     rclpy.init()
     node = rclpy.create_node("receptionist_sm")
@@ -129,6 +288,10 @@ def main():
     # Shutdown ROS
     if rclpy.ok():
         rclpy.shutdown()
+
+def main():
+    #find_seat_sm()
+    locate_person_from_face()
 
 if __name__ == "__main__":
     main()
