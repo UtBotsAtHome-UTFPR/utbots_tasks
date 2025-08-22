@@ -9,6 +9,9 @@ import os
 
 def generate_launch_description():
 
+    recognition_launch_path = os.path.join(
+        get_package_share_directory('utbots_face_recognition'), 'launch', 'recognition.launch.py')
+
     # Declare the launch argument
     declared_camera_topic = DeclareLaunchArgument(
         'camera_topic',
@@ -18,11 +21,15 @@ def generate_launch_description():
 
     camera_topic = LaunchConfiguration('camera_topic')
 
-    realsense_launch_path = os.path.join(
-        get_package_share_directory('realsense2_camera'), 'launch')
+    # realsense_launch_path = os.path.join(
+    #     get_package_share_directory('realsense2_camera'), 'launch')
 
     return LaunchDescription([
         declared_camera_topic,
+
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(recognition_launch_path)
+        ),
 
         # YOLO Node 1
         Node(
@@ -32,39 +39,18 @@ def generate_launch_description():
             namespace='yolo_node_coco',
             output='screen',
             parameters=[{
-                'camera_topic': camera_topic
-            }]
-        ),
-
-        # YOLO Node 2 with custom weights
-        Node(
-            package='yolov8_ros',
-            executable='yolo_node',
-            name='yolo_node_home',
-            namespace='yolo_node_home',
-            output='screen',
-            parameters=[{
                 'camera_topic': camera_topic,
-                'weights': '/home/laser/Downloads/best_drinks.pt'
+                'draw' : True
             }]
         ),
 
-        # Conditionally include RealSense launch file
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(
-                os.path.join(realsense_launch_path, 'rs_launch.py')
-            ),
-            condition=LaunchConfigurationEquals('camera_topic', '/camera/camera/color/image_raw')
-        ),
-
-        # Conditionally launch usb_cam if topic is /image_raw
         Node(
             package='usb_cam',
             executable='usb_cam_node_exe',
             name='usb_cam',
             output='screen',
             parameters=[{
-                'video_device': '/dev/video2',
+                'video_device': '/dev/video0',
                 'framerate': 30.0,
                 'io_method': 'mmap',
                 'frame_id': 'camera',
@@ -88,9 +74,4 @@ def generate_launch_description():
             }]
         ),
 
-        Node(
-            package='utbots_tasks',
-            executable='basic_vision',
-            name='basic_vision',
-        )
     ])

@@ -7,6 +7,7 @@ from launch.substitutions import ThisLaunchFileDir
 from ament_index_python.packages import get_package_share_directory
 
 import os
+home_directory = os.environ['HOME']
 
 def generate_launch_description():
     # Paths to other launch files
@@ -17,6 +18,7 @@ def generate_launch_description():
         get_package_share_directory('vad_ros'), 'launch')
     
     verbose = LaunchConfiguration('verbose',default="false")
+    map_path = f'{home_directory}/ros2_ws/src/utbots_navigation/utbots_nav/map/pitaco.yaml'
 
     return LaunchDescription([
  
@@ -26,7 +28,7 @@ def generate_launch_description():
             launch_arguments={
                 'use_sim_time': 'false',
                 'use_imu': 'false',
-                'map': '/home/laser/ros2_ws/src/utbots_navigation/utbots_nav/map/arena_filled.yaml'
+                'map': map_path
             }.items()
         ),
 
@@ -38,7 +40,7 @@ def generate_launch_description():
             output='screen',
             parameters=[{
                 'camera_topic': '/image_raw',
-                'weights': '/home/ehg2004/Downloads/best.pt'
+                # 'weights': 'yolo11n.pt'
             }]
         ),
 
@@ -59,7 +61,7 @@ def generate_launch_description():
             package='ros_tts',
             executable='tts_node',
             name='tts_node',
-            # output='screen',
+            output='screen',
             emulate_tty=True,
             parameters=[
                 {

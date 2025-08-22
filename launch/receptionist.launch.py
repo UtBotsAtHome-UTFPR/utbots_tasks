@@ -12,15 +12,14 @@ def generate_launch_description():
     # Paths to other launch files
     nav_launch_path = os.path.join(
         get_package_share_directory('utbots_nav'), 'launch', 'nav.launch.py')
-
     recognition_launch_path = os.path.join(
         get_package_share_directory('utbots_face_recognition'), 'launch', 'recognition.launch.py')
 
     stt_launch_dir = os.path.join(
         get_package_share_directory('vad_ros'), 'launch')
     
-    realsense_launch_path = os.path.join(
-        get_package_share_directory('realsense2_camera'), 'launch')
+    # realsense_launch_path = os.path.join(
+    #     get_package_share_directory('realsense2_camera'), 'launch')
     
     verbose = LaunchConfiguration('verbose',default="false")
 
@@ -32,7 +31,7 @@ def generate_launch_description():
             launch_arguments={
                 'use_sim_time': 'false',
                 'use_imu': 'false',
-                'map': '/home/laser/ros2_ws/src/utbots_navigation/utbots_nav/map/arena_filled.yaml'
+                'map': '/home/segalle/ros2_ws/src/utbots_navigation/utbots_nav/map/pitaco.yaml'
             }.items()
         ),
 
@@ -50,10 +49,10 @@ def generate_launch_description():
                 }.items() 
         ),
 
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(os.path.join(realsense_launch_path, 'rs_launch.py')),
-            #launch_arguments={}
-        ),
+        # IncludeLaunchDescription(
+        #     PythonLaunchDescriptionSource(os.path.join(realsense_launch_path, 'rs_launch.py')),
+        #     #launch_arguments={}
+        # ),
 
         # Launch yolov8_ros yolo_node
         # YOLO node for Robot 1
@@ -64,8 +63,8 @@ def generate_launch_description():
             namespace='yolo_node1',
             output='screen',
             parameters=[{
-                'camera_topic': '/camera/camera/color/image_raw',
-                'weights': '/home/laser/ros2_ws/src/yolo11n.pt'
+                'camera_topic': '/image_raw',
+                'weights': '/home/segalle/ros2_ws/src/yolo11n.pt'
             }]
         ),
 
@@ -77,8 +76,8 @@ def generate_launch_description():
             namespace='yolo_node2',
             output='screen',
             parameters=[{
-                'camera_topic': '/camera/camera/color/image_raw',
-                'weights': '/home/laser/Downloads/best_drinks.pt'
+                'camera_topic': '/image_raw',
+                'weights': '/home/segalle/Downloads/best_drinks.pt'
             }]
         ),
 

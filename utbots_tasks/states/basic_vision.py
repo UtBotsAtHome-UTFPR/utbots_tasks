@@ -118,6 +118,7 @@ class FramePerson(State):
         
         identified_image = self.bridge.cv2_to_imgmsg(mask_img, encoding="bgr8")
 
+        blackboard["cropped_person"] = identified_image
         # TODO: passar essa imagem pro mediapipe estimar a pose da pessoa
         # cv2.imshow("img", mask_img)
         # cv2.waitKey(0)

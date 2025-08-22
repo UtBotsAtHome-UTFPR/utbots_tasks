@@ -1,4 +1,5 @@
 import rclpy
+from rclpy.node import Node
 import yasmin
 from yasmin import Blackboard, StateMachine, State
 from yasmin_ros import set_ros_loggers
@@ -11,9 +12,21 @@ from utbots_tasks.states.basic_voice import CoquiTTSState
 from utbots_tasks.states.basic_vision import FindObjectState
 from utbots_tasks.states.logs import DetectionLogState
 
+import os
+home_directory = os.environ['HOME']
+
 def main():
     yasmin.YASMIN_LOG_INFO("manipulation_and_object_detection_sm started")
     rclpy.init()
+
+    # Create a temporary ROS 2 node just to handle parameters
+    node = Node("manipulation_and_object_detection_node")
+
+    # Declare a string parameter with a default value
+    node.declare_parameter("map_name", "map")
+
+    # Read the string parameter
+    map_name = node.get_parameter("map_name").get_parameter_value().string_value
 
     # Set up ROS 2 logs
     set_ros_loggers()
@@ -105,8 +118,8 @@ def main():
     blackboard["support_threshold"] = 0.4
     blackboard["batch_size"] = 50
     blackboard["objects"] = []
-    blackboard['yaml_path'] = '/home/ehg2004/utbots_ws/src/utbots_navigation/utbots_nav/map/arena_filled_waypoints.yaml'
-    blackboard['wp-object_collection'] = 'room_bar_kitchen'
+    blackboard['yaml_path'] = f'{home_directory}/ros2_ws/src/utbots_navigation/utbots_nav/map/{map_name}_waypoints.yaml'
+    blackboard['wp-object_collection'] = 'room'
     blackboard['iterations'] = 3  # Number of iterations for retrying object detection
     # blackboard['wp-object_collection'] = 'object_collection'
 
