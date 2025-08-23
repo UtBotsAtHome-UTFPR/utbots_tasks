@@ -7,6 +7,7 @@ from launch.substitutions import ThisLaunchFileDir
 from ament_index_python.packages import get_package_share_directory
 
 import os
+home_dir = os.path.expanduser("~")
 
 def generate_launch_description():
     # Paths to other launch files
@@ -31,7 +32,7 @@ def generate_launch_description():
             launch_arguments={
                 'use_sim_time': 'false',
                 'use_imu': 'false',
-                'map': '/home/segalle/ros2_ws/src/utbots_navigation/utbots_nav/map/pitaco.yaml'
+                'map': f'{home_dir}/ros2_ws/src/utbots_navigation/utbots_nav/map/pitaco.yaml'
             }.items()
         ),
 
@@ -64,7 +65,7 @@ def generate_launch_description():
             output='screen',
             parameters=[{
                 'camera_topic': '/image_raw',
-                'weights': '/home/segalle/ros2_ws/src/yolo11n.pt'
+                'weights': f'{home_dir}/ros2_ws/src/yolo11n.pt'
             }]
         ),
 
@@ -77,7 +78,7 @@ def generate_launch_description():
             output='screen',
             parameters=[{
                 'camera_topic': '/image_raw',
-                'weights': '/home/segalle/Downloads/best_drinks.pt'
+                'weights': f'{home_dir}/Downloads/best_drinks.pt'
             }]
         ),
 
@@ -97,7 +98,7 @@ def generate_launch_description():
                 'image_width': 1280,
                 'image_height': 720,
                 'camera_name': 'test_camera',
-                'camera_info_url': 'file:///home/laser/.ros/camera_info/default_cam.yaml',
+                'camera_info_url': f'file://{home_dir}/.ros/camera_info/default_cam.yaml',
                 'brightness': -1,
                 'contrast': -1,
                 'saturation': -1,
@@ -121,7 +122,7 @@ def generate_launch_description():
             parameters=[
                 {
                     # 'model_path':
-                    # '/home/laser/ros2_ws/src/utbots_nlu/rasa/models/20250716-120427-brass-queue.tar.gz',
+                    # f'{home_dir}/ros2_ws/src/utbots_nlu/rasa/models/20250716-120427-brass-queue.tar.gz',
                   }
             ]
         ),
