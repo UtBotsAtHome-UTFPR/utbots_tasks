@@ -106,8 +106,33 @@ class FramePerson(State):
             people_bbox[-1]["ymin"] = detection.ymin
             people_bbox[-1]["ymax"] = detection.ymax
 
-        # TODO: Pegando a primeira pq o yolo batch detection está quebrado, fazer iou da face e da bounding box yolo em x do topo em y até +- 2x altura da face
-        extracted_bbox = people_bbox[0]
+        face_height = face_bbox["ymax"] - face_bbox["ymin"]
+
+        extracted_bbox = None
+        max_intersect = 0
+        for bbox in people_bbox:
+
+            inter_x_min = max(face_bbox["xmin"], bbox["xmin"])
+            inter_y_min = max(face_bbox["ymin"], bbox["ymin"])
+            inter_x_max = min(face_bbox["xmax"], bbox["xmax"])
+            inter_y_max = min(face_bbox["ymax"], bbox["ymin"] + face_height) # In case someone is behind a seated known person
+
+            inter_width = max(0, inter_x_max - inter_x_min)
+            inter_height = max(0, inter_y_max - inter_y_min)
+
+            inter_area = inter_width * inter_height
+
+            area1 = (face_bbox["xmax"] - face_bbox["xmin"]) * (face_bbox["ymax"] - face_bbox["ymin"])
+            area2 = (bbox["xmax"] - bbox["xmax"]) * (bbox["ymax"] - bbox["ymin"])
+
+            union_area = area1 + area2 - inter_area
+
+            # Compute IoU
+            if union_area == 0:
+                return 0.0
+            if (inter_area / union_area) > max_intersect:
+                max_intersect = inter_area / union_area
+                extracted_bbox = bbox
 
         h, w, a = cv_image.shape
 
