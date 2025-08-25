@@ -6,6 +6,7 @@ from launch.conditions import LaunchConfigurationEquals
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
 import os
+home_dir = os.path.expanduser("~")
 
 def generate_launch_description():
 
@@ -67,7 +68,7 @@ def generate_launch_description():
                 'image_width': 1280,
                 'image_height': 720,
                 'camera_name': 'test_camera',
-                'camera_info_url': 'file:///home/laser/.ros/camera_info/default_cam.yaml',
+                'camera_info_url': f'file://{home_dir}/.ros/camera_info/default_cam.yaml',
                 'brightness': -1,
                 'contrast': -1,
                 'saturation': -1,

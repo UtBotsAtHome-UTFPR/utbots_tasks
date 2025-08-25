@@ -8,6 +8,8 @@ from yasmin import CbState, Blackboard, StateMachine, State
 from yasmin_ros import set_ros_loggers
 from yasmin_ros.basic_outcomes import SUCCEED, ABORT, CANCEL
 from yasmin_viewer import YasminViewerPub
+import os
+home_dir = os.path.expanduser("~")
 
 from utbots_tasks.states.basic_face import RecognitionState, NewFaceState, generate_new_face_sm, generate_recognition_sm, IdentifyYAW, SavePosition, CheckContinuation, get_people_position_sm, USBCamOn
 
@@ -17,8 +19,6 @@ from utbots_tasks.states.basic_vision import FindObjectState
 
 from utbots_tasks.states.basic_voice import CoquiTTSState, get_process_nlu, generate_ask_name_sm, generate_ask_drink_sm
 from utbots_tasks.states.basic_voice import Register,Person,ask_interested_in_sm #,greet_and_name_cb, new_face_error_cb
-
-
 
 PROCESS_NLU=get_process_nlu()
 
@@ -276,7 +276,7 @@ def main():
     blackboard["seat"] = ["chair","sofa","couch"]
     blackboard["person"] = "person"
     blackboard["rotate"] = 45
-    blackboard['yaml_path'] = '/home/segalle/ros2_ws/src/utbots_navigation/utbots_nav/map/pitaco_waypoints.yaml'
+    blackboard['yaml_path'] = f'{home_dir}/ros2_ws/src/utbots_navigation/utbots_nav/map/pitaco_waypoints.yaml'
     blackboard["drink"] = 'drinks-milk'
     blackboard["detections"] = None
 

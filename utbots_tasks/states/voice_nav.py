@@ -28,6 +28,8 @@ from utbots_tasks.tasks.beverage_search import GoToWaypointState
 from rcl_interfaces.msg import ParameterDescriptor
 
 from rclpy.node import Node
+import os
+home_dir = os.path.expanduser("~")
 
 PROCESS_NLU=get_process_nlu()
 
@@ -223,7 +225,7 @@ def main():
     # blackboard["batch_size"] = 50
     # blackboard["beverage"] = "person"
     # blackboard["rotate"] = 90
-    # blackboard['yaml_path'] = '/home/laser/ros2_ws/src/utbots_navigation/utbots_nav/map/pitaco_waypoints.yaml'
+    # blackboard['yaml_path'] = f'{home_dir}/ros2_ws/src/utbots_navigation/utbots_nav/map/pitaco_waypoints.yaml'
     # blackboard['waypoint_nametag'] = 'living_room'
 
 
@@ -237,10 +239,10 @@ def main():
         print(f"Map file found: {map_file}")
         blackboard
         # Set the yaml_path in the blackboard
-        blackboard['yaml_path'] = map_file.rsplit(".yaml")[0]+"_waypoints.yaml" #'/home/robo/david_ws/src/utbots_navigation/utbots_nav/map/pitaco_waypoints.yaml'
+        blackboard['yaml_path'] = map_file.rsplit(".yaml")[0]+"_waypoints.yaml"
         print(f"Map file found: {blackboard['yaml_path']}")
     except:
-        blackboard['yaml_path'] ='/home/laser/ros2_ws/src/utbots_navigation/utbots_nav/map/pitaco_waypoints.yaml'
+        blackboard['yaml_path'] =f'{home_dir}/ros2_ws/src/utbots_navigation/utbots_nav/map/pitaco_waypoints.yaml'
         print(f"Map file found: {blackboard['yaml_path']}")
     # blackboard['waypoint_nametag'] = 'kitchen'
 

@@ -125,6 +125,23 @@ class GoToWaypointState(ActionState):
             None,  # callback to process the response
         )
 
+    # TODO: Implement a way to automatically get the current map yaml file path like:
+    # import subprocess
+    # try:
+    #     map_file = subprocess.check_output(
+    #     ["ros2", "param", "get", "/map_server", "yaml_filename"],
+    #     universal_newlines=True
+    #     ).rsplit("String value is: ")[1]
+    #     # map_file = map_file.strip()  # Remove any leading/trailing whitespace
+    #     print(f"Map file found: {map_file}")
+    #     blackboard
+    #     # Set the yaml_path in the blackboard
+    #     blackboard['yaml_path'] = map_file.rsplit(".yaml")[0]+"_waypoints.yaml"
+    #     print(f"Map file found: {blackboard['yaml_path']}")
+    # except:
+    #     blackboard['yaml_path'] =f'{home_dir}/ros2_ws/src/utbots_navigation/utbots_nav/map/pitaco_waypoints.yaml'
+    #     print(f"Map file found: {blackboard['yaml_path']}")
+    # # blackboard['waypoint_nametag'] = 'kitchen'
     def create_goal_handler(self, blackboard: Blackboard) -> NavigateToPose.Goal:
         nametag = blackboard["waypoint_nametag"]
         yaml_path = blackboard["yaml_path"]

@@ -8,6 +8,8 @@ from yasmin import Blackboard, StateMachine
 from yasmin_ros import set_ros_loggers
 from yasmin_ros.basic_outcomes import SUCCEED, ABORT, CANCEL
 from yasmin_viewer import YasminViewerPub
+import os
+home_dir = os.path.expanduser("~")
 
 from utbots_tasks.states.basic_nav import GoToWaypointState, WaitDoorOpenState, SetInitialPose
 
@@ -66,7 +68,7 @@ def main():
     blackboard = Blackboard()
     blackboard["waypoint_nametag"] = "entrance"
     blackboard["waypoint_exit_door"] = "inspection"
-    blackboard['yaml_path'] = '/home/laser/ros2_ws/src/utbots_navigation/utbots_nav/map/arena_filled_waypoints.yaml'
+    blackboard['yaml_path'] = f'{home_dir}/ros2_ws/src/utbots_navigation/utbots_nav/map/arena_filled_waypoints.yaml'
 
     try:
         outcome = sm(blackboard)
