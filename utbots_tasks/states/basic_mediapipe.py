@@ -7,7 +7,7 @@ from utbots_actions.action import MPPose
 from yasmin_viewer import YasminViewerPub
 from cv_bridge import CvBridge
 
-class FindObjectState(ActionState):
+class GetPersonPointState(ActionState):
     """
     Class for searching and retrieving detections for one or more objects with several YOLO detections
 
@@ -20,31 +20,29 @@ class FindObjectState(ActionState):
             MPPose,
             action_server,
             self.create_goal_handler,
+            [SUCCEED, CANCEL, ABORT],
             self.response_handler,
             None,
         )
         self.verbose = verbose
 
     def create_goal_handler(self, blackboard: Blackboard) -> MPPose.Goal:
-        goal = MPPose.Goal()
         
+        goal = MPPose.Goal()
+
+        goal.get_torso_point.data = True
+        goal.get_drawn.data = True
+
         if "mediapipe_img" in blackboard:
-            img = blackboard["mediapipe_image"]
+            goal.image = blackboard["mediapipe_img"]
 
-        goal.
-
-        cv_image = self.bridge.imgmsg_to_cv2(img, desired_encoding="bgr8")
         return goal
 
-    def response_handler(self, blackboard: Blackboard, response: YOLOBatchDetection.Result) -> str:
-        detections = response.detected_objs.bounding_boxes
-        blackboard["annotated_img"] = response.annotated_image
-        blackboard["detections"] = detections if detections else []
+    def response_handler(self, blackboard: Blackboard, response: MPPose.Result) -> str:
         
-        if self.verbose:
-            yasmin.YASMIN_LOG_INFO(f"[DEBUG] Detections: ")
-            # for detection in detections:
-        
-        yasmin.YASMIN_LOG_INFO(f"[DEBUG] {detections}")
-        
-        return SUCCEED if detections else "not_detected"
+        img = response.skeleton_img
+        point = response.point
+
+        blackboard["track_person_img"] = img
+
+        return SUCCEED

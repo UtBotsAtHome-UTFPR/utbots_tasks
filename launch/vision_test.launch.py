@@ -11,6 +11,10 @@ def generate_launch_description():
 
     recognition_launch_path = os.path.join(
         get_package_share_directory('utbots_face_recognition'), 'launch', 'recognition.launch.py')
+    
+    mediapipe_launch_path = os.path.join(
+        get_package_share_directory('mediapipe_track'), 'launch', "mediapipe_node.launch.py"
+    )
 
     # Declare the launch argument
     declared_camera_topic = DeclareLaunchArgument(
@@ -29,6 +33,10 @@ def generate_launch_description():
 
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(recognition_launch_path)
+        ),
+
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(mediapipe_launch_path)
         ),
 
         # YOLO Node 1

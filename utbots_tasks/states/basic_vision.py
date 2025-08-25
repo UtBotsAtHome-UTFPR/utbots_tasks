@@ -7,10 +7,12 @@ from utbots_actions.action import YOLOBatchDetection
 from std_msgs.msg import String, Int32, Float32
 from yasmin_viewer import YasminViewerPub
 from utbots_tasks.states.basic_face import USBCamOff, USBCamOn, RecognitionState
+from utbots_tasks.states.basic_mediapipe import GetPersonPointState
 from cv_bridge import CvBridge
 import cv2
 import time
 import numpy as np
+from utbots_actions.action import MPPose
 
 class FindObjectState(ActionState):
     """
@@ -68,7 +70,6 @@ class FindObjectState(ActionState):
         yasmin.YASMIN_LOG_INFO(f"[DEBUG] {detections}")
         
         return SUCCEED if detections else "not_detected"
-
 
 class FramePerson(State):
     def __init__(self) -> None:
@@ -158,7 +159,7 @@ def locate_person_from_face():
         "FIND_PEOPLE",
         FindObjectState(action_server="/yolo_node_coco/YOLO_batch_detection", verbose=True),
         transitions={
-            SUCCEED: "USBCAM_OFF_STATE",
+            SUCCEED: "FRAME_PERSON",
             'not_detected': ABORT,
             CANCEL: CANCEL,
             ABORT: ABORT
@@ -178,9 +179,19 @@ def locate_person_from_face():
         "FRAME_PERSON",
         FramePerson(),
         transitions={
-            SUCCEED:"USBCAM_OFF_STATE2",
+            SUCCEED:"TRACK_PERSON",
             ABORT:ABORT
         }
+    )
+
+    sm.add_state(
+        "TRACK_PERSON",
+        GetPersonPointState(),
+        transitions={
+            SUCCEED:"USBCAM_OFF_STATE2",
+            ABORT:ABORT
+        },
+        remappings = {"mediapipe_img" : "cropped_person"}
     )
 
     # Estado de identificar dentro de qual bbox está a face
