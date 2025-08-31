@@ -1,6 +1,7 @@
 from launch import LaunchDescription
 from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument
-from launch.launch_description_sources import PythonLaunchDescriptionSource
+
+from launch.launch_description_sources import PythonLaunchDescriptionSource, AnyLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch.conditions import LaunchConfigurationEquals
 from launch_ros.actions import Node
@@ -10,17 +11,18 @@ home_dir = os.path.expanduser("~")
 
 def generate_launch_description():
 
-    recognition_launch_path = os.path.join(
-        get_package_share_directory('utbots_face_recognition'), 'launch', 'recognition.launch.py')
-    
     mediapipe_launch_path = os.path.join(
         get_package_share_directory('mediapipe_track'), 'launch', "mediapipe_node.launch.py"
+    )
+
+    kinect2_launch_path = os.path.join(
+        get_package_share_directory('kinect2_bridge'), 'launch', 'kinect2_bridge_launch.yaml'
     )
 
     # Declare the launch argument
     declared_camera_topic = DeclareLaunchArgument(
         'camera_topic',
-        default_value='/image_raw',
+        default_value='/kinect2/hd/image_color',
         description='Camera topic to subscribe to'
     )
 
@@ -32,13 +34,32 @@ def generate_launch_description():
     return LaunchDescription([
         declared_camera_topic,
 
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(recognition_launch_path)
+        Node(
+            package='utbots_face_recognition',
+            executable='recognize',
+            name='face_recognition',
+            output='screen',
+            emulate_tty=True,
+            parameters=[{
+                'camera_topic': camera_topic
+            }]
         ),
 
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(mediapipe_launch_path)
         ),
+
+        IncludeLaunchDescription(
+            AnyLaunchDescriptionSource(kinect2_launch_path) # This is a yaml file
+        ),
+
+        # Kinect one launch file (depth doesn't work properly)
+        # Node(
+        #         package="kinect_ros2",
+        #         executable="kinect_ros2_node",
+        #         name="kinect_ros2",
+        #         namespace="kinect",
+        # ),
 
         # YOLO Node 1
         Node(

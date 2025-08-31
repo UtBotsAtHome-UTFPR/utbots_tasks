@@ -39,10 +39,9 @@ class GetPersonPointState(ActionState):
         return goal
 
     def response_handler(self, blackboard: Blackboard, response: MPPose.Result) -> str:
-        
-        img = response.skeleton_img
-        point = response.point
 
-        blackboard["track_person_img"] = img
+        blackboard["mediapipe_skeleton_img"] = response.skeleton_img
+        blackboard["mediapipe_skeleton_point"] = response.point
+        blackboard["mediapipe_points_normalized"] = response.skeleton_points_normalized
 
         return SUCCEED

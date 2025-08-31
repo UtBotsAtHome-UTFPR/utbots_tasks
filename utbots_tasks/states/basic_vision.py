@@ -1,7 +1,7 @@
 import rclpy
 import yasmin
 from yasmin import Blackboard, StateMachine, State
-from yasmin_ros import ActionState, set_ros_loggers
+from yasmin_ros import ActionState, MonitorState, set_ros_loggers
 from yasmin_ros.basic_outcomes import SUCCEED, ABORT, CANCEL
 from utbots_actions.action import YOLOBatchDetection
 from std_msgs.msg import String, Int32, Float32
@@ -13,6 +13,15 @@ import cv2
 import time
 import numpy as np
 from utbots_actions.action import MPPose
+from sensor_msgs.msg import Image, PointCloud2
+
+from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSDurabilityPolicy
+
+custom_qos = QoSProfile(
+    reliability=QoSReliabilityPolicy.BEST_EFFORT,
+    durability=QoSDurabilityPolicy.VOLATILE,
+    depth=10
+)
 
 class FindObjectState(ActionState):
     """
@@ -151,6 +160,48 @@ class FramePerson(State):
 
         return SUCCEED
 
+class GetPersonPositiontate(MonitorState):
+    def __init__(self) -> None:
+        super().__init__(Image, 
+                         "/kinect2/sd/image_depth_rect", 
+                         [SUCCEED, ABORT], 
+                         self.monitor_handler,
+                         qos=custom_qos,
+                         msg_queue=10, 
+                         timeout=30)
+        self.cvBridge = CvBridge()
+        
+    def monitor_handler(self, blackboard: Blackboard, msg: Image) -> str:
+
+        cv_image = self.cvBridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
+
+        # Determine the pixels for the skeleton positions 
+        person_points = blackboard["mediapipe_points_normalized"]
+
+        valid_positions = []
+        for point in person_points.points:
+            # If point is at the image (mediapipe creates estimated points outside)
+            if point.x > 0 and point.x < 1 and point.y > 0 and point.y < 1:
+                point.x = point.x * msg.width
+                point.y = point.y * msg.height
+                
+                # Kinect depth sensor has less width than rgb and it's filled with 0
+                if cv_image[int(point.x)][int(point.y)] > 0:
+                    point.z = cv_image[int(point.x)][int(point.y)] / 1000 # millimiter to meter conversion
+                    valid_positions.append(point)
+        
+        if not valid_positions:
+            return ABORT
+        
+        distance = 0
+        for point in valid_positions:
+            distance += point.z
+        distance /= len(valid_positions)
+
+        # Convert distance to x/y/z coordinates (y doesn't matter but is needed for estimation)
+
+        return SUCCEED
+
 def locate_person_from_face():
     yasmin.YASMIN_LOG_INFO("locate_person_from_face_demo")
     rclpy.init()
@@ -204,28 +255,40 @@ def locate_person_from_face():
         "FRAME_PERSON",
         FramePerson(),
         transitions={
-            SUCCEED:"TRACK_PERSON",
+            SUCCEED:"TRACK_PERSON_FROM_CROPPED",
             ABORT:ABORT
         }
     )
 
     sm.add_state(
-        "TRACK_PERSON",
+        "TRACK_PERSON_FROM_CROPPED",
         GetPersonPointState(),
         transitions={
-            SUCCEED:"USBCAM_OFF_STATE2",
+            SUCCEED:"TRACK_PERSON",
             ABORT:ABORT
         },
         remappings = {"mediapipe_img" : "cropped_person"}
     )
 
-    # Estado de identificar dentro de qual bbox está a face
+    # Estado track person com a imagem não cropada pras partes que não terão bounding box
+    sm.add_state(
+        "TRACK_PERSON",
+        GetPersonPointState(),
+        transitions={
+            SUCCEED:"GET_PERSON_POSE_FROM_TORSO",
+            ABORT:ABORT
+        },
+    )
 
-    # Estado para croppar a imagem de acordo
-
-    # Chamar mediapipe com a imagem cortada para pegar o ponto
-
-    # Talvez tenha que fazer coisas pra colocar a posição em relação ao robô
+    # Estado monitor de estimar a posição da pessoa a partir da posição da posição do torso dela
+    sm.add_state(
+        "GET_PERSON_POSE_FROM_TORSO",
+        GetCurrentPoseState(),
+        transitions={
+            SUCCEED:"TRACK_PERSON",
+            ABORT:ABORT
+        },
+    )
 
     sm.add_state(
         "USBCAM_OFF_STATE2",
