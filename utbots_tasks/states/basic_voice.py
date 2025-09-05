@@ -1,7 +1,3 @@
-# from yasmin import State, Blackboard
-# from yasmin import ActionState, SUCCEED, ABORT
-# from nav2_msgs.action import NavigateToPose
-from utbots_actions.action import TextToSpeech, Transcription, InterpretNLU
 import yasmin
 import rclpy
 import yasmin
@@ -10,6 +6,9 @@ from yasmin import State, CbState, Blackboard, StateMachine
 from yasmin_ros import ActionState
 from yasmin_ros import set_ros_loggers
 from yasmin_ros.basic_outcomes import SUCCEED, ABORT, CANCEL
+
+from utbots_actions.action import TextToSpeech, Transcription, InterpretNLU
+from std_msgs.msg import String
 
 class Person():
     def __init__(self, name=None, drink=None, interested_in=None):
@@ -29,8 +28,6 @@ class Person():
 
     def __repr__(self):
         return f"Person(name={self.name})"
-
-from std_msgs.msg import String
 
 class SendTTSState(ActionState):
     def __init__(self) -> None:
@@ -411,8 +408,6 @@ PROCESS_NLU=[
 
 def get_process_nlu():
     return PROCESS_NLU
-
-
 
 class NLUProcess(CbState):
     """
@@ -1031,75 +1026,5 @@ def ask_interested_in_sm():
             PROCESS_NLU[20]: SUCCEED,
         },
     )
-
-    # ask_interested_in_sm.add_state(
-    #     "VERIFY",
-    #     CoquiTTSState(),
-    #     transitions={
-    #         SUCCEED: "CALLING_WHISPER_VER",
-    #         CANCEL: ABORT,
-    #     },
-    # )
-
-    # ask_interested_in_sm.add_state(
-    #     "CALLING_WHISPER_VER",
-    #     WhisperSTTState(),
-    #     transitions={
-    #         SUCCEED: "WHISPER_PROCESS_VER",
-    #         CANCEL: ABORT,
-    #         ABORT: ABORT,
-    #     },
-    # )
-
-    # ask_interested_in_sm.add_state(
-    #     "WHISPER_PROCESS_VER",
-    #     CbState(["process_whisper1","process_whisper2","process_whisper3"],whisper_process_cb),
-    #     transitions={
-    #         "process_whisper1": "CALLING_WHISPER_VER",
-    #         "process_whisper2": "NLU_INFERENCE_VER",
-    #         # "process_whisper3": "outcome4",
-
-    #     },
-    # )
-
-    # ask_interested_in_sm.add_state(
-    #     "NLU_INFERENCE_VER",
-    #     NLUInference(),
-    #     transitions={
-    #         SUCCEED: "NLU_PROCESS_VER",
-    #         CANCEL: ABORT,
-    #         ABORT: ABORT,
-    #     },
-    #     remappings={"nlu_input_text": "whispered"},
-    # )
-
-    # ask_interested_in_sm.add_state(
-    #     "NLU_PROCESS_VER",
-    #     NLUProcess(True),  # Set verbose to True for detailed logging     
-    #     transitions={
-    #         PROCESS_NLU[0]: "ASK_SOMETHING",
-    #         PROCESS_NLU[1]: "ASK_SOMETHING",
-    #         PROCESS_NLU[2]: "ASK_SOMETHING",
-    #         PROCESS_NLU[3]: "ASK_SOMETHING",
-    #         PROCESS_NLU[4]: "ASK_SOMETHING",
-    #         PROCESS_NLU[5]: "ASK_SOMETHING",
-    #         PROCESS_NLU[6]: "ASK_SOMETHING",
-    #         PROCESS_NLU[7]: "ASK_SOMETHING",
-    #         PROCESS_NLU[8]: "ASK_SOMETHING",
-    #         PROCESS_NLU[9]: "ASK_SOMETHING",
-    #         PROCESS_NLU[10]: "ASK_SOMETHING",
-    #         PROCESS_NLU[11]: "ASK_SOMETHING",
-    #         PROCESS_NLU[12]: "ASK_SOMETHING",
-    #         PROCESS_NLU[13]: "ASK_SOMETHING",
-    #         PROCESS_NLU[14]: "ASK_SOMETHING",
-    #         PROCESS_NLU[15]: "ASK_SOMETHING",
-    #         PROCESS_NLU[16]: "ASK_SOMETHING",
-    #         PROCESS_NLU[17]: "ASK_SOMETHING",
-    #         PROCESS_NLU[18]: "ASK_SOMETHING",
-    #         PROCESS_NLU[19]: "ASK_SOMETHING",
-    #     },
-    # )
-
-    
 
     return ask_interested_in_sm

@@ -1,22 +1,23 @@
 import rclpy
+from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSDurabilityPolicy
 import yasmin
 from yasmin import Blackboard, StateMachine, State
 from yasmin_ros import ActionState, MonitorState, set_ros_loggers
 from yasmin_ros.basic_outcomes import SUCCEED, ABORT, CANCEL
-from utbots_actions.action import YOLOBatchDetection
-from std_msgs.msg import String, Int32, Float32
 from yasmin_viewer import YasminViewerPub
+
+from utbots_actions.action import YOLOBatchDetection, MPPose
+from std_msgs.msg import String, Int32, Float32
+from sensor_msgs.msg import Image, PointCloud2
+from geometry_msgs.msg import Point
+
 from utbots_tasks.states.basic_face import USBCamOff, USBCamOn, RecognitionState
 from utbots_tasks.states.basic_mediapipe import GetPersonPointState
+
 from cv_bridge import CvBridge
 import cv2
 import time
 import numpy as np
-from utbots_actions.action import MPPose
-from sensor_msgs.msg import Image, PointCloud2
-from geometry_msgs.msg import Point
-
-from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSDurabilityPolicy
 
 custom_qos = QoSProfile(
     reliability=QoSReliabilityPolicy.BEST_EFFORT,
@@ -76,17 +77,19 @@ class EstimateGraspPoint(MonitorState):
 
     def monitor_handler(self, blackboard: Blackboard, msg: MPPose) -> str:
         detections = blackboard["detections"]
+        segmentation = blackboard["segmentation"]
 
-        # Try to extract xs and ys from detections.mask, fallback to detections.xyxyn if needed
+        # Try to extract xs and ys from segmentation masks (geometry_msgs/Polygon[]), fallback to detections.xyxyn if needed
         try:
-            # detections.mask is a numpy boolean array (H, W) or list of such arrays
-            mask = detections.mask
-            if isinstance(mask, list):
-                # If multiple masks, use the first one (or adapt as needed)
-                mask = mask[0]
-            ys_idx, xs_idx = np.where(mask)
-            xs = xs_idx / mask.shape[1]
-            ys = ys_idx / mask.shape[0]
+            # segmentation is a list of geometry_msgs/Polygon, each with .points: list of Point32(x, y, z)
+            if segmentation and isinstance(segmentation, list) and len(segmentation) > 0:
+                # Use the first mask (or select based on detection index if available)
+                mask = segmentation[0]
+                if hasattr(mask, 'points') and isinstance(mask.points, list) and len(mask.points) > 0:
+                    xs = [pt.x for pt in mask.points if 0 <= pt.x <= 1]
+                    ys = [pt.y for pt in mask.points if 0 <= pt.y <= 1]
+            else:
+                raise AttributeError
         except AttributeError:
             # Fallback: assume detections.xyxyn is a list of [x, y, ...] normalized coordinates
             xs = [xy[0] for xy in detections.xyxyn if 0 <= xy[0] <= 1]
@@ -160,8 +163,10 @@ class FindObjectState(ActionState):
 
     def response_handler(self, blackboard: Blackboard, response: YOLOBatchDetection.Result) -> str:
         detections = response.detected_objs.bounding_boxes
-        blackboard["annotated_img"] = response.annotated_image
         blackboard["detections"] = detections if detections else []
+        blackboard["annotated_img"] = response.annotated_image
+        segmentation = response.segm_mask
+        blackboard["segmentation"] = segmentation if segmentation else None
         
         if self.verbose:
             yasmin.YASMIN_LOG_INFO(f"[DEBUG] Detections: ")
@@ -481,9 +486,67 @@ def find_seat_sm():
     if rclpy.ok():
         rclpy.shutdown()
 
+def get_object_point():
+    yasmin.YASMIN_LOG_INFO("get_object_point_demo")
+    rclpy.init()
+    
+    node = rclpy.create_node("get_object_point_sm")
+
+     # Set up ROS 2 logs
+    set_ros_loggers()
+
+    sm = StateMachine(outcomes=[SUCCEED, CANCEL, ABORT])
+
+    sm.add_state(
+        "FIND_OBJECT",
+        FindObjectState(action_server="/YOLO_batch_detection", verbose=True),
+        transitions={
+            SUCCEED: "ESTIMATE_GRASP_POINT",
+            'not_detected': ABORT,
+            CANCEL: CANCEL,
+            ABORT: ABORT
+        },
+        remappings={"objects": "object", "detections": "bboxes"},
+    )
+
+    sm.add_state(
+        "ESTIMATE_GRASP_POINT",
+        EstimateGraspPoint(),
+        transitions={
+            SUCCEED: SUCCEED,
+            ABORT: ABORT
+        }
+    )
+
+    blackboard = Blackboard()
+
+    # Yolo variables
+    blackboard["object"] = "person"
+    blackboard["batch_size"] = 10
+    blackboard["iou_threshold"] = 0.5
+    blackboard["support_threshold"] = 0.6
+
+    # Publish FSM information
+    YasminViewerPub("YASMIN_ACTION_CLIENT_DEMO", sm)
+
+    try:
+        outcome = sm(blackboard)
+        yasmin.YASMIN_LOG_INFO(outcome)
+        if outcome == SUCCEED:
+            point = blackboard["grasp_point"]
+            yasmin.YASMIN_LOG_INFO(f"Grasp point: x={point.x}, y={point.y}, z={point.z}")
+    except KeyboardInterrupt:
+        if sm.is_running():
+            sm.cancel_state()  # Cancel the state if interrupted
+
+    # Shutdown ROS
+    if rclpy.ok():
+        rclpy.shutdown()
+
 def main():
     #find_seat_sm()
-    locate_person_from_face()
+    #locate_person_from_face()
+    get_object_point()
 
 if __name__ == "__main__":
     main()
