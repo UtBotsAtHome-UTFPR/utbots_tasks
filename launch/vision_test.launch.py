@@ -46,7 +46,10 @@ def generate_launch_description():
         ),
 
         IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(mediapipe_launch_path)
+            PythonLaunchDescriptionSource(mediapipe_launch_path),
+            launch_arguments={
+                'rgb_topic': camera_topic   # <-- new value here
+            }.items()
         ),
 
         IncludeLaunchDescription(
@@ -65,14 +68,22 @@ def generate_launch_description():
         Node(
             package='yolov8_ros',
             executable='yolo_node',
-            name='yolo_node_coco',
-            #namespace='yolo_node_coco',
+            name='yolo_node',
             output='screen',
-            parameters=[{
-                'camera_topic': camera_topic,
-                'draw' : True,
-                'segmentation' : True
-            }]
+            emulate_tty=True,
+            parameters=[
+                {
+                    'weights': 'yolo11n.pt', #/ros2_ws/src/yolov8_ros/weights/best.pt',
+                    'camera_topic':camera_topic,
+                    'device':'cuda',
+                    'conf': 0.25,
+                    'draw': True,
+                    'target_category':'',
+                    'segmentation': False,
+                    'debug':False,
+                    'enable_synchronous_startup':False,
+                  }
+            ]
         ),
 
         # Node(

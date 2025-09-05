@@ -65,8 +65,8 @@ class IdentifyYAW(State):
         theta_max = 78/2 # Logitech cam FOV 
 
         for person in people:
-            print(person.id)
-            if person.id == "Unknown" or person.id in blackboard["people_yaw"]:
+            print(person.category)
+            if person.category == "Unknown" or person.category in blackboard["people_yaw"]:
                 continue
 
             x = int((person.xmin + person.xmax) / 2)
@@ -78,7 +78,7 @@ class IdentifyYAW(State):
 
             angle = degrees(theta)
             print(-angle)
-            blackboard["people_yaw"].append(person.id)
+            blackboard["people_yaw"].append(person.category)
             blackboard["rotate"] = -angle
             blackboard["rotation_count"] = 0
             blackboard["people_count"] += 1

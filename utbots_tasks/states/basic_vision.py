@@ -211,7 +211,7 @@ class FramePerson(State):
                 face_bbox["xmax"] = person.xmax
                 face_bbox["ymin"] = person.ymin
                 face_bbox["ymax"] = person.ymax
-                face_bbox["name"] = person.id
+                face_bbox["name"] = person.category
         
         if not face_bbox:
             return ABORT
@@ -242,7 +242,7 @@ class FramePerson(State):
             inter_area = inter_width * inter_height
 
             area1 = (face_bbox["xmax"] - face_bbox["xmin"]) * (face_bbox["ymax"] - face_bbox["ymin"])
-            area2 = (bbox["xmax"] - bbox["xmax"]) * (bbox["ymax"] - bbox["ymin"])
+            area2 = (bbox["xmax"] - bbox["xmin"]) * (bbox["ymax"] - bbox["ymin"])
 
             union_area = area1 + area2 - inter_area
 
@@ -250,6 +250,7 @@ class FramePerson(State):
             if union_area == 0:
                 return 0.0
             if (inter_area / union_area) > max_intersect:
+                print("Entering")
                 max_intersect = inter_area / union_area
                 extracted_bbox = bbox
 
@@ -309,6 +310,7 @@ class GetPersonPositionState(MonitorState):
         distance /= len(valid_positions)
 
         print(f"Estimated distance is: {distance}")
+        time.sleep(1)
 
         # Convert distance to x/y/z coordinates (y doesn't matter but is needed for estimation)
 
@@ -326,15 +328,6 @@ def locate_person_from_face():
     sm = StateMachine(outcomes=[SUCCEED, CANCEL, ABORT])
 
     sm.add_state(
-        "USBCAM_ON_STATE",
-        USBCamOn(),
-        transitions={
-            SUCCEED: "RECOGNIZE",
-            ABORT: ABORT,
-        },
-    )
-
-    sm.add_state(
         "RECOGNIZE",
         RecognitionState(),
         transitions={
@@ -345,22 +338,13 @@ def locate_person_from_face():
 
     sm.add_state(
         "FIND_PEOPLE",
-        FindObjectState(action_server="/yolo_node_coco/YOLO_batch_detection", verbose=True),
+        FindObjectState(action_server="/YOLO_batch_detection", verbose=True),
         transitions={
             SUCCEED: "FRAME_PERSON",
             'not_detected': ABORT,
             CANCEL: CANCEL,
             ABORT: ABORT
         }
-    )
-
-    sm.add_state(
-        "USBCAM_OFF_STATE",
-        USBCamOff(),
-        transitions={
-            SUCCEED: "FRAME_PERSON",
-            ABORT: ABORT,
-        },
     )
 
     sm.add_state(
@@ -399,15 +383,6 @@ def locate_person_from_face():
         transitions={
             SUCCEED:"TRACK_PERSON",
             ABORT:ABORT
-        },
-    )
-
-    sm.add_state(
-        "USBCAM_OFF_STATE2",
-        USBCamOff(),
-        transitions={
-            SUCCEED: SUCCEED,
-            ABORT: ABORT,
         },
     )
 
@@ -560,8 +535,8 @@ def get_object_point():
 
 def main():
     #find_seat_sm()
-    #locate_person_from_face()
-    get_object_point()
+    locate_person_from_face()
+    #get_object_point()
 
 if __name__ == "__main__":
     main()
