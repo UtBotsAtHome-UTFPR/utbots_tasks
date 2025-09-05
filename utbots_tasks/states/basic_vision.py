@@ -160,7 +160,7 @@ class FramePerson(State):
 
         return SUCCEED
 
-class GetPersonPositiontate(MonitorState):
+class GetPersonPositionState(MonitorState):
     def __init__(self) -> None:
         super().__init__(Image, 
                          "/kinect2/sd/image_depth_rect", 
@@ -197,6 +197,8 @@ class GetPersonPositiontate(MonitorState):
         for point in valid_positions:
             distance += point.z
         distance /= len(valid_positions)
+
+        print(f"Estimated distance is: {distance}")
 
         # Convert distance to x/y/z coordinates (y doesn't matter but is needed for estimation)
 
@@ -283,7 +285,7 @@ def locate_person_from_face():
     # Estado monitor de estimar a posição da pessoa a partir da posição da posição do torso dela
     sm.add_state(
         "GET_PERSON_POSE_FROM_TORSO",
-        GetCurrentPoseState(),
+        GetPersonPositionState(),
         transitions={
             SUCCEED:"TRACK_PERSON",
             ABORT:ABORT
