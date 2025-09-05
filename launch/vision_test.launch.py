@@ -66,42 +66,43 @@ def generate_launch_description():
             package='yolov8_ros',
             executable='yolo_node',
             name='yolo_node_coco',
-            namespace='yolo_node_coco',
+            #namespace='yolo_node_coco',
             output='screen',
             parameters=[{
                 'camera_topic': camera_topic,
-                'draw' : True
+                'draw' : True,
+                'segmentation' : True
             }]
         ),
 
-        Node(
-            package='usb_cam',
-            executable='usb_cam_node_exe',
-            name='usb_cam',
-            output='screen',
-            parameters=[{
-                'video_device': '/dev/video0',
-                'framerate': 30.0,
-                'io_method': 'mmap',
-                'frame_id': 'camera',
-                'pixel_format': 'mjpeg2rgb',
-                'av_device_format': 'YUV422P',
-                'image_width': 1280,
-                'image_height': 720,
-                'camera_name': 'test_camera',
-                'camera_info_url': f'file://{home_dir}/.ros/camera_info/default_cam.yaml',
-                'brightness': -1,
-                'contrast': -1,
-                'saturation': -1,
-                'sharpness': -1,
-                'gain': -1,
-                'auto_white_balance': True,
-                'white_balance': 4000,
-                'autoexposure': True,
-                'exposure': 100,
-                'autofocus': False,
-                'focus': -1
-            }]
-        ),
+        # Node(
+        #     package='usb_cam',
+        #     executable='usb_cam_node_exe',
+        #     name='usb_cam',
+        #     output='screen',
+        #     parameters=[{
+        #         'video_device': '/dev/video0',
+        #         'framerate': 30.0,
+        #         'io_method': 'mmap',
+        #         'frame_id': 'camera',
+        #         'pixel_format': 'mjpeg2rgb',
+        #         'av_device_format': 'YUV422P',
+        #         'image_width': 1280,
+        #         'image_height': 720,
+        #         'camera_name': 'test_camera',
+        #         'camera_info_url': f'file://{home_dir}/.ros/camera_info/default_cam.yaml',
+        #         'brightness': -1,
+        #         'contrast': -1,
+        #         'saturation': -1,
+        #         'sharpness': -1,
+        #         'gain': -1,
+        #         'auto_white_balance': True,
+        #         'white_balance': 4000,
+        #         'autoexposure': True,
+        #         'exposure': 100,
+        #         'autofocus': False,
+        #         'focus': -1
+        #     }]
+        # ),
 
     ])

@@ -49,13 +49,14 @@ class EstimateGraspPoint(MonitorState):
         cv_image = self.cvBridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
         depths = []
         for x, y in zip(xs, ys):
-            px = int(x * msg.width)
-            py = int(y * msg.height)
+            px = int(x)
+            py = int(y)
             depth = self.get_depth_at(cv_image, px, py)
             if depth:
                 depths.append(depth)
-
+        print("BBBBBBBB")
         if depths:
+            print("AAAAAAAAAAA")
             # Gaussian sum: weighted average where weights are Gaussian centered at (center_x, center_y)
             sigma = 0.1  # You may tune this value
             weights = []
@@ -66,8 +67,10 @@ class EstimateGraspPoint(MonitorState):
                 weights.append(w)
             weights = np.array(weights)
             depths = np.array(depths)
+            print(weights, depths)
             if weights.sum() > 0:
                 grasp_depth = float(np.sum(depths * weights) / np.sum(weights))
+                print(grasp_depth)
             else:
                 grasp_depth = self.get_depth_at(cv_image, center_x, center_y)
         else:
@@ -78,6 +81,7 @@ class EstimateGraspPoint(MonitorState):
     def monitor_handler(self, blackboard: Blackboard, msg: MPPose) -> str:
         detections = blackboard["detections"]
         segmentation = blackboard["segmentation"]
+        rgb_image = blackboard["annotated_img"]
 
         # Try to extract xs and ys from segmentation masks (geometry_msgs/Polygon[]), fallback to detections.xyxyn if needed
         try:
@@ -85,9 +89,12 @@ class EstimateGraspPoint(MonitorState):
             if segmentation and isinstance(segmentation, list) and len(segmentation) > 0:
                 # Use the first mask (or select based on detection index if available)
                 mask = segmentation[0]
+                # print(mask.points)
                 if hasattr(mask, 'points') and isinstance(mask.points, list) and len(mask.points) > 0:
-                    xs = [pt.x for pt in mask.points if 0 <= pt.x <= 1]
-                    ys = [pt.y for pt in mask.points if 0 <= pt.y <= 1]
+                    print(msg.width, msg.height)
+                    xs = [pt.x/rgb_image.width*msg.width for pt in mask.points if 0 <= pt.x/rgb_image.width*msg.width <= msg.width]
+                    ys = [pt.y/pt.x/rgb_image.width*msg.width*msg.height for pt in mask.points if 0 <= pt.y/pt.x/rgb_image.width*msg.width*msg.height <= msg.height]
+                    print(xs, ys)
             else:
                 raise AttributeError
         except AttributeError:
@@ -96,6 +103,7 @@ class EstimateGraspPoint(MonitorState):
             ys = [xy[1] for xy in detections.xyxyn if 0 <= xy[1] <= 1]
 
         if xs and ys:
+            print(xs, ys)
             min_x = min(xs)
             max_x = max(xs)
             min_y = min(ys)
@@ -107,12 +115,17 @@ class EstimateGraspPoint(MonitorState):
 
             if grasp_depth:
                 blackboard["grasp_point"] = Point()
-                blackboard["grasp_point"].x = center_x * msg.width
-                blackboard["grasp_point"].y = center_y * msg.height
+                blackboard["grasp_point"].x = center_x
+                blackboard["grasp_point"].y = center_y
+                # TODO: Convert x and y to real distances according to camera fov and distance
                 blackboard["grasp_point"].z = grasp_depth
             else:
+                print("F")
+
                 return ABORT
         else:
+            print("G")
+
             return ABORT
 
         return SUCCEED
