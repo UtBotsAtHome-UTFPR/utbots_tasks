@@ -1,27 +1,121 @@
 import rclpy
+from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSDurabilityPolicy
 import yasmin
 from yasmin import Blackboard, StateMachine, State
 from yasmin_ros import ActionState, MonitorState, set_ros_loggers
 from yasmin_ros.basic_outcomes import SUCCEED, ABORT, CANCEL
-from utbots_actions.action import YOLOBatchDetection
-from std_msgs.msg import String, Int32, Float32
 from yasmin_viewer import YasminViewerPub
+
+from utbots_actions.action import YOLOBatchDetection, MPPose
+from std_msgs.msg import String, Int32, Float32
+from sensor_msgs.msg import Image, PointCloud2
+from geometry_msgs.msg import Point
+
 from utbots_tasks.states.basic_face import USBCamOff, USBCamOn, RecognitionState
 from utbots_tasks.states.basic_mediapipe import GetPersonPointState
+
 from cv_bridge import CvBridge
 import cv2
 import time
 import numpy as np
-from utbots_actions.action import MPPose
-from sensor_msgs.msg import Image, PointCloud2
-
-from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSDurabilityPolicy
 
 custom_qos = QoSProfile(
     reliability=QoSReliabilityPolicy.BEST_EFFORT,
     durability=QoSDurabilityPolicy.VOLATILE,
     depth=10
 )
+
+class EstimateGraspPoint(MonitorState):
+    """
+    Class for estimating the grasp point in a point cloud from a 
+    detections segmentation mask or bounding box if no mask available.
+    """
+    def __init__(self) -> None:
+        super().__init__(Image, 
+                         "/kinect2/sd/image_depth_rect",
+                         [SUCCEED, ABORT], 
+                         self.monitor_handler,
+                         qos=custom_qos,
+                         msg_queue=10, 
+                         timeout=30)
+        self.cvBridge = CvBridge()
+
+    def get_depth_at(self, cv_image, x, y):
+        if cv_image[int(y)][int(x)] > 0:
+            return cv_image[int(y)][int(x)] / 1000  # millimeter to meter conversion
+        return None
+    
+    def calculate_gaussian_depth(self, msg, xs, ys, center_x, center_y):
+        cv_image = self.cvBridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
+        depths = []
+        for x, y in zip(xs, ys):
+            px = int(x * msg.width)
+            py = int(y * msg.height)
+            depth = self.get_depth_at(cv_image, px, py)
+            if depth:
+                depths.append(depth)
+
+        if depths:
+            # Gaussian sum: weighted average where weights are Gaussian centered at (center_x, center_y)
+            sigma = 0.1  # You may tune this value
+            weights = []
+            for x, y in zip(xs, ys):
+                dx = x - center_x
+                dy = y - center_y
+                w = np.exp(-(dx**2 + dy**2) / (2 * sigma**2))
+                weights.append(w)
+            weights = np.array(weights)
+            depths = np.array(depths)
+            if weights.sum() > 0:
+                grasp_depth = float(np.sum(depths * weights) / np.sum(weights))
+            else:
+                grasp_depth = self.get_depth_at(cv_image, center_x, center_y)
+        else:
+            grasp_depth = self.get_depth_at(cv_image, center_x, center_y)
+
+        return grasp_depth
+
+    def monitor_handler(self, blackboard: Blackboard, msg: MPPose) -> str:
+        detections = blackboard["detections"]
+        segmentation = blackboard["segmentation"]
+
+        # Try to extract xs and ys from segmentation masks (geometry_msgs/Polygon[]), fallback to detections.xyxyn if needed
+        try:
+            # segmentation is a list of geometry_msgs/Polygon, each with .points: list of Point32(x, y, z)
+            if segmentation and isinstance(segmentation, list) and len(segmentation) > 0:
+                # Use the first mask (or select based on detection index if available)
+                mask = segmentation[0]
+                if hasattr(mask, 'points') and isinstance(mask.points, list) and len(mask.points) > 0:
+                    xs = [pt.x for pt in mask.points if 0 <= pt.x <= 1]
+                    ys = [pt.y for pt in mask.points if 0 <= pt.y <= 1]
+            else:
+                raise AttributeError
+        except AttributeError:
+            # Fallback: assume detections.xyxyn is a list of [x, y, ...] normalized coordinates
+            xs = [xy[0] for xy in detections.xyxyn if 0 <= xy[0] <= 1]
+            ys = [xy[1] for xy in detections.xyxyn if 0 <= xy[1] <= 1]
+
+        if xs and ys:
+            min_x = min(xs)
+            max_x = max(xs)
+            min_y = min(ys)
+            max_y = max(ys)
+            center_x = (min_x + max_x) / 2
+            center_y = (min_y + max_y) / 2
+
+            grasp_depth = self.calculate_gaussian_depth(msg, xs, ys, center_x, center_y)
+
+            if grasp_depth:
+                blackboard["grasp_point"] = Point()
+                blackboard["grasp_point"].x = center_x * msg.width
+                blackboard["grasp_point"].y = center_y * msg.height
+                blackboard["grasp_point"].z = grasp_depth
+            else:
+                return ABORT
+        else:
+            return ABORT
+
+        return SUCCEED
 
 class FindObjectState(ActionState):
     """
@@ -69,13 +163,16 @@ class FindObjectState(ActionState):
 
     def response_handler(self, blackboard: Blackboard, response: YOLOBatchDetection.Result) -> str:
         detections = response.detected_objs.bounding_boxes
-        blackboard["annotated_img"] = response.annotated_image
         blackboard["detections"] = detections if detections else []
+        blackboard["annotated_img"] = response.annotated_image
+        segmentation = response.segm_mask
+        blackboard["segmentation"] = segmentation if segmentation else None
         
         if self.verbose:
             yasmin.YASMIN_LOG_INFO(f"[DEBUG] Detections: ")
-            # for detection in detections:
-        
+            for detection in detections:
+                yasmin.YASMIN_LOG_INFO(f"[DEBUG] {detection}")
+
         yasmin.YASMIN_LOG_INFO(f"[DEBUG] {detections}")
         
         return SUCCEED if detections else "not_detected"
@@ -391,9 +488,67 @@ def find_seat_sm():
     if rclpy.ok():
         rclpy.shutdown()
 
+def get_object_point():
+    yasmin.YASMIN_LOG_INFO("get_object_point_demo")
+    rclpy.init()
+    
+    node = rclpy.create_node("get_object_point_sm")
+
+     # Set up ROS 2 logs
+    set_ros_loggers()
+
+    sm = StateMachine(outcomes=[SUCCEED, CANCEL, ABORT])
+
+    sm.add_state(
+        "FIND_OBJECT",
+        FindObjectState(action_server="/YOLO_batch_detection", verbose=True),
+        transitions={
+            SUCCEED: "ESTIMATE_GRASP_POINT",
+            'not_detected': ABORT,
+            CANCEL: CANCEL,
+            ABORT: ABORT
+        },
+        remappings={"objects": "object", "detections": "bboxes"},
+    )
+
+    sm.add_state(
+        "ESTIMATE_GRASP_POINT",
+        EstimateGraspPoint(),
+        transitions={
+            SUCCEED: SUCCEED,
+            ABORT: ABORT
+        }
+    )
+
+    blackboard = Blackboard()
+
+    # Yolo variables
+    blackboard["object"] = "person"
+    blackboard["batch_size"] = 10
+    blackboard["iou_threshold"] = 0.5
+    blackboard["support_threshold"] = 0.6
+
+    # Publish FSM information
+    YasminViewerPub("YASMIN_ACTION_CLIENT_DEMO", sm)
+
+    try:
+        outcome = sm(blackboard)
+        yasmin.YASMIN_LOG_INFO(outcome)
+        if outcome == SUCCEED:
+            point = blackboard["grasp_point"]
+            yasmin.YASMIN_LOG_INFO(f"Grasp point: x={point.x}, y={point.y}, z={point.z}")
+    except KeyboardInterrupt:
+        if sm.is_running():
+            sm.cancel_state()  # Cancel the state if interrupted
+
+    # Shutdown ROS
+    if rclpy.ok():
+        rclpy.shutdown()
+
 def main():
     #find_seat_sm()
-    locate_person_from_face()
+    #locate_person_from_face()
+    get_object_point()
 
 if __name__ == "__main__":
     main()
