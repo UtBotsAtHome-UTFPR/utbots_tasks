@@ -82,19 +82,22 @@ class EstimateGraspPoint(MonitorState):
         detections = blackboard["detections"]
         segmentation = blackboard["segmentation"]
         rgb_image = blackboard["annotated_img"]
-
-        # Try to extract xs and ys from segmentation masks (geometry_msgs/Polygon[]), fallback to detections.xyxyn if needed
+        # Try to extract xs and ys from segmentation masks (image mask), fallback to detections.xyxyn if needed
         try:
-            # segmentation is a list of geometry_msgs/Polygon, each with .points: list of Point32(x, y, z)
-            if segmentation and isinstance(segmentation, list) and len(segmentation) > 0:
-                # Use the first mask (or select based on detection index if available)
-                mask = segmentation[0]
-                # print(mask.points)
-                if hasattr(mask, 'points') and isinstance(mask.points, list) and len(mask.points) > 0:
-                    print(msg.width, msg.height)
-                    xs = [pt.x/rgb_image.width*msg.width for pt in mask.points if 0 <= pt.x/rgb_image.width*msg.width <= msg.width]
-                    ys = [pt.y/pt.x/rgb_image.width*msg.width*msg.height for pt in mask.points if 0 <= pt.y/pt.x/rgb_image.width*msg.width*msg.height <= msg.height]
-                    print(xs, ys)
+            # If detections has a mask attribute (e.g., detections.mask is a numpy array or similar)
+            if hasattr(detections, "mask") and detections.mask is not None:
+            # Assume detections.mask is a binary mask (numpy array) with the same size as rgb_image
+                mask = detections.mask
+                mask = self.cvBridge.imgmsg_to_cv2(mask, desired_encoding="mono8")
+                # Binarize mask: consider pixels > 0 as True
+                mask = (mask > 0)
+                if isinstance(mask, np.ndarray):
+                    # Find nonzero (True) pixel coordinates
+                    ys, xs = np.nonzero(mask)
+                    xs = xs.tolist()
+                    ys = ys.tolist()
+                else:
+                    raise AttributeError
             else:
                 raise AttributeError
         except AttributeError:
