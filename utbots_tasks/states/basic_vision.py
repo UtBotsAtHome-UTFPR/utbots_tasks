@@ -80,8 +80,6 @@ class EstimateGraspPoint(MonitorState):
 
     def monitor_handler(self, blackboard: Blackboard, msg: MPPose) -> str:
         detections = blackboard["detections"]
-        segmentation = blackboard["segmentation"]
-        rgb_image = blackboard["annotated_img"]
         # Try to extract xs and ys from segmentation masks (image mask), fallback to detections.xyxyn if needed
         try:
             # If detections has a mask attribute (e.g., detections.mask is a numpy array or similar)
@@ -118,10 +116,41 @@ class EstimateGraspPoint(MonitorState):
 
             if grasp_depth:
                 blackboard["grasp_point"] = Point()
-                blackboard["grasp_point"].x = center_x
-                blackboard["grasp_point"].y = center_y
-                # TODO: Convert x and y to real distances according to camera fov and distance
-                blackboard["grasp_point"].z = grasp_depth
+                
+                # Convert pixel coordinates (center_x, center_y) to camera-centered 3D meter coordinates 
+                # using spherical to cartesian coordinates transformation. Grasp depth is already metric 
+                # from the camera.
+                
+                fov_x = blackboard["fov_hor"]  # Horizontal FOV in degrees
+                fov_y = blackboard["fov_ver"]  # Vertical FOV in degrees
+                width = msg.width
+                height = msg.height
+
+                # Calculate angles theta (horizontal) and phi (vertical) from the optical axis
+                x_max = width / 2.0
+                y_max = height / 2.0
+                theta_max = fov_x / 2.0
+                phi_max = fov_y / 2.0
+
+                x = center_x - x_max
+                y = center_y - y_max
+
+                theta = np.deg2rad(theta_max * x / x_max)
+                phi = np.deg2rad(phi_max * y / y_max)
+
+                rho = grasp_depth/1000.0  # Convert from mm to meters
+
+                # Spherical to Cartesian conversion
+                Y = rho * np.sin(phi)
+                X = np.sqrt(rho**2 - Y**2) * np.sin(theta)
+                Z = X / np.tan(theta) if np.abs(theta) > 1e-6 else np.sqrt(rho**2 - X**2 - Y**2)
+
+                # Remap coordinates
+                # - Image coordinates: x right, y down, z forward
+                # - ROS coordinates: x forward, y left, z up
+                blackboard["grasp_point"].x = Z
+                blackboard["grasp_point"].y = -X
+                blackboard["grasp_point"].z = -Y
             else:
                 print("F")
 
