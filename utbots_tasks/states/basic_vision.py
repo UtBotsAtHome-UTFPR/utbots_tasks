@@ -7,9 +7,10 @@ from yasmin_ros.basic_outcomes import SUCCEED, ABORT, CANCEL
 from yasmin_viewer import YasminViewerPub
 
 from utbots_actions.action import YOLOBatchDetection, MPPose
+from utbots_msgs.msg import BoundingBox
 from std_msgs.msg import String, Int32, Float32
 from sensor_msgs.msg import Image, PointCloud2
-from geometry_msgs.msg import Point
+from geometry_msgs.msg import Point, PointStamped
 
 from utbots_tasks.states.basic_face import USBCamOff, USBCamOn, RecognitionState
 from utbots_tasks.states.basic_mediapipe import GetPersonPointState
@@ -48,29 +49,29 @@ class EstimateGraspPoint(MonitorState):
     def calculate_gaussian_depth(self, msg, xs, ys, center_x, center_y):
         cv_image = self.cvBridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
         depths = []
+        sigma = 0.1  # You may tune this value
+        # Gaussian sum: weighted average where weights are Gaussian centered at (center_x, center_y)
+        weights = []
+
         for x, y in zip(xs, ys):
             px = int(x)
             py = int(y)
             depth = self.get_depth_at(cv_image, px, py)
+            print(depth)
             if depth:
                 depths.append(depth)
-        print("BBBBBBBB")
-        if depths:
-            print("AAAAAAAAAAA")
-            # Gaussian sum: weighted average where weights are Gaussian centered at (center_x, center_y)
-            sigma = 0.1  # You may tune this value
-            weights = []
-            for x, y in zip(xs, ys):
                 dx = x - center_x
                 dy = y - center_y
                 w = np.exp(-(dx**2 + dy**2) / (2 * sigma**2))
                 weights.append(w)
+        
+        print("Depths and weights:")
+        print(weights, depths)
+        if depths:
             weights = np.array(weights)
             depths = np.array(depths)
-            print(weights, depths)
             if weights.sum() > 0:
                 grasp_depth = float(np.sum(depths * weights) / np.sum(weights))
-                print(grasp_depth)
             else:
                 grasp_depth = self.get_depth_at(cv_image, center_x, center_y)
         else:
@@ -78,8 +79,10 @@ class EstimateGraspPoint(MonitorState):
 
         return grasp_depth
 
-    def monitor_handler(self, blackboard: Blackboard, msg: MPPose) -> str:
-        detections = blackboard["detections"]
+    def monitor_handler(self, blackboard: Blackboard, msg: Image) -> str:
+        detections = blackboard["detections"][0]
+        dimg_width = msg.width
+        dimg_height = msg.height
         # Try to extract xs and ys from segmentation masks (image mask), fallback to detections.xyxyn if needed
         try:
             # If detections has a mask attribute (e.g., detections.mask is a numpy array or similar)
@@ -93,29 +96,45 @@ class EstimateGraspPoint(MonitorState):
                     # Find nonzero (True) pixel coordinates
                     ys, xs = np.nonzero(mask)
                     xs = xs.tolist()
-                    ys = ys.tolist()
+                    ys = ys.tolist()    
+                    # Normalize mask coordinates to the depth image dimensions
+                    mask_height, mask_width = mask.shape
+                    xs = [x / mask_width * dimg_width for x in xs]
+                    ys = [y / mask_height * dimg_height for y in ys]
+                    # print(xs, ys)
                 else:
                     raise AttributeError
             else:
                 raise AttributeError
         except AttributeError:
-            # Fallback: assume detections.xyxyn is a list of [x, y, ...] normalized coordinates
-            xs = [xy[0] for xy in detections.xyxyn if 0 <= xy[0] <= 1]
-            ys = [xy[1] for xy in detections.xyxyn if 0 <= xy[1] <= 1]
+            # Fallback: use normalized bounding box fields
+            xs = []
+            ys = []
+            if hasattr(detections, "xminn") and hasattr(detections, "xmaxn") and hasattr(detections, "yminn") and hasattr(detections, "ymaxn"):
+                
+                # Convert normalized bbox to pixel coordinates
+                xmin = int(detections.xminn * dimg_width)
+                xmax = int(detections.xmaxn * dimg_width)
+                ymin = int(detections.yminn * dimg_height)
+                ymax = int(detections.ymaxn * dimg_height)
+                # Fill xs and ys with all pixel coordinates inside the bbox
+                xs = list(range(xmin, xmax))
+                ys = list(range(ymin, ymax))
 
         if xs and ys:
-            print(xs, ys)
             min_x = min(xs)
             max_x = max(xs)
             min_y = min(ys)
             max_y = max(ys)
             center_x = (min_x + max_x) / 2
             center_y = (min_y + max_y) / 2
+            print("Object center at: ", center_x, center_y)
 
             grasp_depth = self.calculate_gaussian_depth(msg, xs, ys, center_x, center_y)
 
             if grasp_depth:
-                blackboard["grasp_point"] = Point()
+                point = Point()
+                
                 
                 # Convert pixel coordinates (center_x, center_y) to camera-centered 3D meter coordinates 
                 # using spherical to cartesian coordinates transformation. Grasp depth is already metric 
@@ -123,12 +142,10 @@ class EstimateGraspPoint(MonitorState):
                 
                 fov_x = blackboard["fov_hor"]  # Horizontal FOV in degrees
                 fov_y = blackboard["fov_ver"]  # Vertical FOV in degrees
-                width = msg.width
-                height = msg.height
 
                 # Calculate angles theta (horizontal) and phi (vertical) from the optical axis
-                x_max = width / 2.0
-                y_max = height / 2.0
+                x_max = dimg_width / 2.0
+                y_max = dimg_height / 2.0
                 theta_max = fov_x / 2.0
                 phi_max = fov_y / 2.0
 
@@ -138,7 +155,10 @@ class EstimateGraspPoint(MonitorState):
                 theta = np.deg2rad(theta_max * x / x_max)
                 phi = np.deg2rad(phi_max * y / y_max)
 
-                rho = grasp_depth/1000.0  # Convert from mm to meters
+                rho = grasp_depth
+
+                print("Spherical coordinates (rho, theta, phi): ")
+                print(rho, theta, phi)
 
                 # Spherical to Cartesian conversion
                 Y = rho * np.sin(phi)
@@ -148,9 +168,18 @@ class EstimateGraspPoint(MonitorState):
                 # Remap coordinates
                 # - Image coordinates: x right, y down, z forward
                 # - ROS coordinates: x forward, y left, z up
-                blackboard["grasp_point"].x = Z
-                blackboard["grasp_point"].y = -X
-                blackboard["grasp_point"].z = -Y
+                point.x = X#Z
+                point.y = Y#-X
+                point.z = Z#-Y
+
+                blackboard["grasp_point"] = PointStamped()
+                blackboard["grasp_point"].point = point
+                blackboard["grasp_point"]._header = getattr(blackboard["grasp_point"], "_header", None)
+                blackboard["grasp_point"].header = getattr(blackboard["grasp_point"], "header", None)
+                blackboard["grasp_point"].header = getattr(blackboard["grasp_point"], "header", None) or type("Header", (), {})()
+                blackboard["grasp_point"].header.frame_id = "kinect2_link"
+            
+            
             else:
                 print("F")
 
@@ -170,7 +199,7 @@ class FindObjectState(ActionState):
         action_server (str : "YOLO_batch_detection"): address of the YOLO action server
         verbose (bool : False): show debug information
     """
-    def __init__(self, action_server="YOLO_batch_detection", verbose=False,) ->None:
+    def __init__(self, action_server="YOLO_batch_detection", verbose=False) ->None:
         super().__init__(
             YOLOBatchDetection,
             action_server,
@@ -208,10 +237,8 @@ class FindObjectState(ActionState):
 
     def response_handler(self, blackboard: Blackboard, response: YOLOBatchDetection.Result) -> str:
         detections = response.detected_objs.bounding_boxes
-        blackboard["detections"] = detections if detections else []
+        blackboard["detections"] = detections if detections else BoundingBox()
         blackboard["annotated_img"] = response.annotated_image
-        segmentation = response.segm_mask
-        blackboard["segmentation"] = segmentation if segmentation else None
         
         if self.verbose:
             yasmin.YASMIN_LOG_INFO(f"[DEBUG] Detections: ")
@@ -513,6 +540,7 @@ def get_object_point():
     rclpy.init()
     
     node = rclpy.create_node("get_object_point_sm")
+    grasp_point_pub = node.create_publisher(PointStamped, "grasp_point", 10)
 
      # Set up ROS 2 logs
     set_ros_loggers()
@@ -521,7 +549,7 @@ def get_object_point():
 
     sm.add_state(
         "FIND_OBJECT",
-        FindObjectState(action_server="/YOLO_batch_detection", verbose=True),
+        FindObjectState(action_server="/YOLO_batch_detection", verbose=False),
         transitions={
             SUCCEED: "ESTIMATE_GRASP_POINT",
             'not_detected': ABORT,
@@ -547,6 +575,8 @@ def get_object_point():
     blackboard["batch_size"] = 10
     blackboard["iou_threshold"] = 0.5
     blackboard["support_threshold"] = 0.6
+    blackboard["fov_hor"] = 70.0  # Horizontal FOV of the depth camera in degrees
+    blackboard["fov_ver"] = 60.0  # Vertical FOV of
 
     # Publish FSM information
     YasminViewerPub("YASMIN_ACTION_CLIENT_DEMO", sm)
@@ -556,7 +586,10 @@ def get_object_point():
         yasmin.YASMIN_LOG_INFO(outcome)
         if outcome == SUCCEED:
             point = blackboard["grasp_point"]
-            yasmin.YASMIN_LOG_INFO(f"Grasp point: x={point.x}, y={point.y}, z={point.z}")
+            yasmin.YASMIN_LOG_INFO(f"Grasp point: x={point.point.x}, y={point.point.y}, z={point.point.z}")
+            # Publish the grasp point to a ROS 2 topic
+            grasp_point_pub.publish(point)
+            yasmin.YASMIN_LOG_INFO("Published grasp point to 'grasp_point' topic.")
     except KeyboardInterrupt:
         if sm.is_running():
             sm.cancel_state()  # Cancel the state if interrupted
@@ -567,8 +600,8 @@ def get_object_point():
 
 def main():
     #find_seat_sm()
-    locate_person_from_face()
-    #get_object_point()
+    # locate_person_from_face()
+    get_object_point()
 
 if __name__ == "__main__":
     main()

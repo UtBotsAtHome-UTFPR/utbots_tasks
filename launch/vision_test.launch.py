@@ -34,16 +34,16 @@ def generate_launch_description():
     return LaunchDescription([
         declared_camera_topic,
 
-        Node(
-            package='utbots_face_recognition',
-            executable='recognize',
-            name='face_recognition',
-            output='screen',
-            emulate_tty=True,
-            parameters=[{
-                'camera_topic': camera_topic
-            }]
-        ),
+        # Node(
+        #     package='utbots_face_recognition',
+        #     executable='recognize',
+        #     name='face_recognition',
+        #     output='screen',
+        #     emulate_tty=True,
+        #     parameters=[{
+        #         'camera_topic': camera_topic
+        #     }]
+        # ),
 
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(mediapipe_launch_path),
@@ -79,7 +79,7 @@ def generate_launch_description():
                     'conf': 0.25,
                     'draw': True,
                     'target_category':'',
-                    'segmentation': False,
+                    'segmentation': True,
                     'debug':False,
                     'enable_synchronous_startup':False,
                   }
