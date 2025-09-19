@@ -20,6 +20,8 @@ import cv2
 import time
 import numpy as np
 
+from math import pow, sqrt, sin, tan, radians, cos
+
 custom_qos = QoSProfile(
     reliability=QoSReliabilityPolicy.BEST_EFFORT,
     durability=QoSDurabilityPolicy.VOLATILE,
@@ -344,29 +346,74 @@ class GetPersonPositionState(MonitorState):
     def monitor_handler(self, blackboard: Blackboard, msg: Image) -> str:
 
         cv_image = self.cvBridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
+        height, width = cv_image.shape[:2]
 
         # Determine the pixels for the skeleton positions 
         person_points = blackboard["mediapipe_points_normalized"]
 
         valid_positions = []
         for point in person_points.points:
-            # If point is at the image (mediapipe creates estimated points outside)
-            if point.x > 0 and point.x < 1 and point.y > 0 and point.y < 1:
-                point.x = point.x * msg.width
-                point.y = point.y * msg.height
+            # If point is inside the image (mediapipe may create estimated points outside)
+            if 0 < point.x < 1 and 0 < point.y < 1:
                 
-                # Kinect depth sensor has less width than rgb and it's filled with 0
-                if cv_image[int(point.x)][int(point.y)] > 0:
-                    point.z = cv_image[int(point.x)][int(point.y)] / 1000 # millimiter to meter conversion
-                    valid_positions.append(point)
-        
+                point.x = point.x * width
+                point.y = point.y * height
+
+                # Ensure indices are within bounds
+                if 0 <= point.y < height and 0 <= point.x < width:
+                    depth_value = cv_image[int(point.y), int(point.x)]
+                    if depth_value > 0:
+                        point.z = depth_value / 1000.0  # mm to m
+                        valid_positions.append(point)
+
+        # For some reason falls here if the person is too low on the screen
         if not valid_positions:
+            print("No pixel from person in depth scan")
             return ABORT
         
         distance = 0
+        avg_x = avg_y = 0
         for point in valid_positions:
             distance += point.z
+            avg_x += point.x
+            avg_y += point.y
         distance /= len(valid_positions)
+        avg_x /= len(valid_positions)
+        avg_y /= len(valid_positions)
+
+        # Até aqui os valores fazem sentido
+
+        # Centralize the camera reference at (0,0,0)
+        ## (x,y,z) are respectively horizontal, vertical and depth
+        ## Theta is the angle of the point with z axis in the zx plane
+        ## Phi is the angle of the point with z axis in the zy plane
+        ## x_max is the distance of the side border from the camera
+        ## y_max is the distance of the upper border from the camera
+        theta_max = 84/2 
+        phi_max = 54/2
+        img_x_max = width/2.0
+        img_y_max = height/2.0
+        img_x = avg_x - img_x_max
+        img_y = avg_y - img_y_max
+
+        print(img_x)
+
+        # Caculate angle theta and phi
+        theta = radians(theta_max * img_x / img_x_max)
+        phi = radians(phi_max * img_y / img_y_max)
+
+        # Calculate x, y and z
+        z = distance * sin(phi)
+        y = distance * cos(phi) * sin(theta)
+        x = distance * cos(phi) * cos(theta)
+
+        # Change coordinate scheme
+        ## We calculate with (x,y,z) respectively horizontal, vertical and depth
+        ## For the plot in 3d space, we need to remap the coordinates to (x, -y, -z)
+        #point_zxy = Point(x, -y, -z)
+        print(x)
+        print(-y)
+        print(-z)
 
         print(f"Estimated distance is: {distance}")
         time.sleep(1)
@@ -600,8 +647,8 @@ def get_object_point():
 
 def main():
     #find_seat_sm()
-    # locate_person_from_face()
-    get_object_point()
+    locate_person_from_face()
+    #get_object_point()
 
 if __name__ == "__main__":
     main()
