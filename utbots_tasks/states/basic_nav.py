@@ -11,6 +11,8 @@ from std_msgs.msg import Int32
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import LaserScan
 
+from rclpy.time import Time
+
 import time
 import yaml
 import math
@@ -69,6 +71,24 @@ class GoToState(ActionState):
         goal = NavigateToPose.Goal()
         goal.pose.pose = blackboard["pose"]
         goal.pose.header.frame_id = "map"  # Set the reference frame to 'map'
+        return goal
+    
+class FollowPersonState(ActionState):
+    def __init__(self) -> None:
+         super().__init__(
+            NavigateToPose,  # action type
+            "/navigate_to_pose",  # action name
+            self.create_goal_handler,  # callback to create the goal
+            None,  # outcomes
+            None,  # callback to process the response
+        )
+
+    def create_goal_handler(self, blackboard: Blackboard) -> NavigateToPose.Goal:
+        goal = NavigateToPose.Goal()
+        goal.pose.header.stamp = Time().to_msg()
+        goal.pose.pose = blackboard["pose"]
+        goal.pose.header.frame_id = "odom"
+        #goal.behavior_tree = "follow_point"
         return goal
 
 class RotateInPlaceState(ActionState):

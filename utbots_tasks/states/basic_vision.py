@@ -11,9 +11,11 @@ from utbots_msgs.msg import BoundingBox
 from std_msgs.msg import String, Int32, Float32
 from sensor_msgs.msg import Image, PointCloud2
 from geometry_msgs.msg import Point, PointStamped
+from geometry_msgs.msg import Pose
 
 from utbots_tasks.states.basic_face import USBCamOff, USBCamOn, RecognitionState
 from utbots_tasks.states.basic_mediapipe import GetPersonPointState
+from utbots_tasks.states.basic_nav import FollowPersonState, GoToState
 
 from cv_bridge import CvBridge
 import cv2
@@ -368,6 +370,7 @@ class GetPersonPositionState(MonitorState):
 
         # For some reason falls here if the person is too low on the screen
         if not valid_positions:
+            # Meter um (0,0,0) e retornar success
             print("No pixel from person in depth scan")
             return ABORT
         
@@ -408,6 +411,7 @@ class GetPersonPositionState(MonitorState):
         x = distance * cos(phi) * cos(theta)
 
         # Change coordinate scheme
+        # The cordinates below are wrong
         ## We calculate with (x,y,z) respectively horizontal, vertical and depth
         ## For the plot in 3d space, we need to remap the coordinates to (x, -y, -z)
         #point_zxy = Point(x, -y, -z)
@@ -417,6 +421,13 @@ class GetPersonPositionState(MonitorState):
 
         print(f"Estimated distance is: {distance}")
         time.sleep(1)
+
+        pose = Pose()
+
+        pose.position.x = x
+        pose.position.y = y
+        
+        blackboard["pose"] = pose
 
         # Convert distance to x/y/z coordinates (y doesn't matter but is needed for estimation)
 
@@ -487,9 +498,19 @@ def locate_person_from_face():
         "GET_PERSON_POSE_FROM_TORSO",
         GetPersonPositionState(),
         transitions={
-            SUCCEED:"TRACK_PERSON",
+            SUCCEED:"NAV_FOLLOW",
             ABORT:ABORT
         },
+    )
+
+    sm.add_state(
+        "NAV_FOLLOW",
+        FollowPersonState(),
+        transitions={
+            SUCCEED:"TRACK_PERSON",
+            ABORT:ABORT,
+            CANCEL:ABORT
+        }
     )
 
     blackboard = Blackboard()
