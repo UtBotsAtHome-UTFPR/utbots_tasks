@@ -15,21 +15,21 @@ def generate_launch_description():
         get_package_share_directory('mediapipe_track'), 'launch', "mediapipe_node.launch.py"
     )
 
-    kinect2_launch_path = os.path.join(
-        get_package_share_directory('kinect2_bridge'), 'launch', 'kinect2_bridge_launch.yaml'
-    )
+    # kinect2_launch_path = os.path.join(
+    #     get_package_share_directory('kinect2_bridge'), 'launch', 'kinect2_bridge_launch.yaml'
+    # )
 
     # Declare the launch argument
     declared_camera_topic = DeclareLaunchArgument(
         'camera_topic',
-        default_value='/kinect2/hd/image_color',
+        default_value='/camera/camera/color/image_raw',
         description='Camera topic to subscribe to'
     )
 
-    camera_topic = LaunchConfiguration('camera_topic')
+    realsense_launch_path = os.path.join(
+        get_package_share_directory('realsense2_camera'), 'examples', 'align_depth')
 
-    # realsense_launch_path = os.path.join(
-    #     get_package_share_directory('realsense2_camera'), 'launch')
+    camera_topic = LaunchConfiguration('camera_topic')
 
     return LaunchDescription([
         declared_camera_topic,
@@ -52,16 +52,8 @@ def generate_launch_description():
             }.items()
         ),
 
-        IncludeLaunchDescription(
-            AnyLaunchDescriptionSource(kinect2_launch_path) # This is a yaml file
-        ),
-
-        # Kinect one launch file (depth doesn't work properly)
-        # Node(
-        #         package="kinect_ros2",
-        #         executable="kinect_ros2_node",
-        #         name="kinect_ros2",
-        #         namespace="kinect",
+        # IncludeLaunchDescription(
+        #     AnyLaunchDescriptionSource(kinect2_launch_path) # This is a yaml file
         # ),
 
         # YOLO Node 1
@@ -83,6 +75,23 @@ def generate_launch_description():
                     'debug':False,
                     'enable_synchronous_startup':False,
                   }
+            ]
+        ),
+
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(os.path.join(realsense_launch_path, 'rs_align_depth_launch.py')),
+            #launch_arguments={}
+        ),
+
+        Node(
+            package='tf2_ros',
+            executable='static_transform_publisher',
+            name='base_to_camera_tf',
+            arguments=[
+                '0.0', '0.0', '0.1',   # x, y, z offset
+                '0.0', '0.0', '0.0',   # roll, pitch, yaw (in radians)
+                'base_footprint',       # parent frame
+                'camera_link'           # child frame
             ]
         ),
 

@@ -5,6 +5,8 @@ from yasmin import Blackboard, StateMachine, State
 from yasmin_ros import ActionState, MonitorState, set_ros_loggers
 from yasmin_ros.basic_outcomes import SUCCEED, ABORT, CANCEL
 from yasmin_viewer import YasminViewerPub
+from tf_transformations import quaternion_from_euler
+import math
 
 from utbots_actions.action import YOLOBatchDetection, MPPose
 from utbots_msgs.msg import BoundingBox
@@ -337,7 +339,7 @@ class FramePerson(State):
 class GetPersonPositionState(MonitorState):
     def __init__(self) -> None:
         super().__init__(Image, 
-                         "/kinect2/sd/image_depth_rect", 
+                         "/camera/camera/aligned_depth_to_color/image_raw", 
                          [SUCCEED, ABORT], 
                          self.monitor_handler,
                          qos=custom_qos,
@@ -365,24 +367,39 @@ class GetPersonPositionState(MonitorState):
                 if 0 <= point.y < height and 0 <= point.x < width:
                     depth_value = cv_image[int(point.y), int(point.x)]
                     if depth_value > 0:
-                        point.z = depth_value / 1000.0  # mm to m
+                        point.z = float(depth_value) / 1000.0 #Extra 0 for kinect (mm to m), rs is cm to m
                         valid_positions.append(point)
 
         # For some reason falls here if the person is too low on the screen
         if not valid_positions:
             # Meter um (0,0,0) e retornar success
             print("No pixel from person in depth scan")
-            return ABORT
+            pose = Pose()
+
+            pose.position.x = 0.0
+            pose.position.y = 0.0
+
+            pose.orientation.x = 0.0
+            pose.orientation.y = 0.0
+            pose.orientation.z = 0.0
+            pose.orientation.w = 1.0
+            
+            blackboard["pose"] = pose
+            return SUCCEED
         
         distance = 0
         avg_x = avg_y = 0
+        invalid = 0
         for point in valid_positions:
+            if distance >= 1.5:
+                invalid+=1
+                continue
             distance += point.z
             avg_x += point.x
             avg_y += point.y
-        distance /= len(valid_positions)
-        avg_x /= len(valid_positions)
-        avg_y /= len(valid_positions)
+        distance /= len(valid_positions) - invalid
+        avg_x /= len(valid_positions) - invalid
+        avg_y /= len(valid_positions) - invalid
 
         # Até aqui os valores fazem sentido
 
@@ -392,14 +409,12 @@ class GetPersonPositionState(MonitorState):
         ## Phi is the angle of the point with z axis in the zy plane
         ## x_max is the distance of the side border from the camera
         ## y_max is the distance of the upper border from the camera
-        theta_max = 84/2 
-        phi_max = 54/2
+        theta_max = 69.4/2 
+        phi_max = 42.5/2
         img_x_max = width/2.0
         img_y_max = height/2.0
         img_x = avg_x - img_x_max
         img_y = avg_y - img_y_max
-
-        print(img_x)
 
         # Caculate angle theta and phi
         theta = radians(theta_max * img_x / img_x_max)
@@ -407,17 +422,14 @@ class GetPersonPositionState(MonitorState):
 
         # Calculate x, y and z
         z = distance * sin(phi)
-        y = distance * cos(phi) * sin(theta)
+        y = -distance * cos(phi) * sin(theta)
         x = distance * cos(phi) * cos(theta)
 
-        # Change coordinate scheme
-        # The cordinates below are wrong
-        ## We calculate with (x,y,z) respectively horizontal, vertical and depth
-        ## For the plot in 3d space, we need to remap the coordinates to (x, -y, -z)
-        #point_zxy = Point(x, -y, -z)
-        print(x)
-        print(-y)
-        print(-z)
+        dx = x
+        dy = y # Ao usar tf o -y provavelmente pode ser transformado em y
+
+        yaw = math.atan2(dy, dx)
+        q = quaternion_from_euler(0.0, 0.0, yaw)
 
         print(f"Estimated distance is: {distance}")
         time.sleep(1)
@@ -425,8 +437,18 @@ class GetPersonPositionState(MonitorState):
         pose = Pose()
 
         pose.position.x = x
-        pose.position.y = y
-        
+        pose.position.y = y # Ao usar tf o -y provavelmente pode ser transformado em y
+        print(f"x is: {x}")
+        print(f"y is: {y}")
+        pose.orientation.x = q[0]
+        pose.orientation.y = q[1]
+        pose.orientation.z = q[2]
+        pose.orientation.w = q[3]
+        # pose.orientation.x = 0.0
+        # pose.orientation.y = 0.0
+        # pose.orientation.z = 0.0
+        # pose.orientation.w = 1.0
+
         blackboard["pose"] = pose
 
         # Convert distance to x/y/z coordinates (y doesn't matter but is needed for estimation)
@@ -444,44 +466,44 @@ def locate_person_from_face():
 
     sm = StateMachine(outcomes=[SUCCEED, CANCEL, ABORT])
 
-    sm.add_state(
-        "RECOGNIZE",
-        RecognitionState(),
-        transitions={
-            SUCCEED: "FIND_PEOPLE",
-            ABORT: ABORT,
-        }
-    )
+    # sm.add_state(
+    #     "RECOGNIZE",
+    #     RecognitionState(),
+    #     transitions={
+    #         SUCCEED: "FIND_PEOPLE",
+    #         ABORT: ABORT,
+    #     }
+    # )
 
-    sm.add_state(
-        "FIND_PEOPLE",
-        FindObjectState(action_server="/YOLO_batch_detection", verbose=True),
-        transitions={
-            SUCCEED: "FRAME_PERSON",
-            'not_detected': ABORT,
-            CANCEL: CANCEL,
-            ABORT: ABORT
-        }
-    )
+    # sm.add_state(
+    #     "FIND_PEOPLE",
+    #     FindObjectState(action_server="/YOLO_batch_detection", verbose=True),
+    #     transitions={
+    #         SUCCEED: "FRAME_PERSON",
+    #         'not_detected': ABORT,
+    #         CANCEL: CANCEL,
+    #         ABORT: ABORT
+    #     }
+    # )
 
-    sm.add_state(
-        "FRAME_PERSON",
-        FramePerson(),
-        transitions={
-            SUCCEED:"TRACK_PERSON_FROM_CROPPED",
-            ABORT:ABORT
-        }
-    )
+    # sm.add_state(
+    #     "FRAME_PERSON",
+    #     FramePerson(),
+    #     transitions={
+    #         SUCCEED:"TRACK_PERSON_FROM_CROPPED",
+    #         ABORT:ABORT
+    #     }
+    # )
 
-    sm.add_state(
-        "TRACK_PERSON_FROM_CROPPED",
-        GetPersonPointState(),
-        transitions={
-            SUCCEED:"TRACK_PERSON",
-            ABORT:ABORT
-        },
-        remappings = {"mediapipe_img" : "cropped_person"}
-    )
+    # sm.add_state(
+    #     "TRACK_PERSON_FROM_CROPPED",
+    #     GetPersonPointState(),
+    #     transitions={
+    #         SUCCEED:"TRACK_PERSON",
+    #         ABORT:ABORT
+    #     },
+    #     remappings = {"mediapipe_img" : "cropped_person"}
+    # )
 
     # Estado track person com a imagem não cropada pras partes que não terão bounding box
     sm.add_state(
@@ -505,7 +527,7 @@ def locate_person_from_face():
 
     sm.add_state(
         "NAV_FOLLOW",
-        FollowPersonState(),
+        FollowPersonState(node),
         transitions={
             SUCCEED:"TRACK_PERSON",
             ABORT:ABORT,
