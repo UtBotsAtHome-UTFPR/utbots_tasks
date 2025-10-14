@@ -11,6 +11,7 @@ from yasmin_viewer import YasminViewerPub
 import os
 home_dir = os.path.expanduser("~")
 
+from utbots_tasks.states.basic_voice import CoquiTTSState
 from utbots_tasks.states.basic_nav import GoToWaypointState, WaitDoorOpenState, SetInitialPose
 
 def main():
@@ -28,9 +29,19 @@ def main():
         "SET_INIT_POSE",
         SetInitialPose(node, 0.0, 0.0, 0.0),
         transitions={
-            SUCCEED: "WAIT_DOOR",
+            SUCCEED: "TTS_INITIATING",
             ABORT: "failed"
         }
+    )
+
+    sm.add_state(
+        "TTS_INITIATING",
+        CoquiTTSState(),
+        transitions={
+            SUCCEED: "WAIT_DOOR",
+            CANCEL: ABORT,
+        },
+        remappings = {"tts_text" : "tts-exit"}   
     )
 
     sm.add_state(
@@ -47,9 +58,19 @@ def main():
         "GO_TO_WAYPOINT1",
         GoToWaypointState(),
         transitions={
-            SUCCEED: "GO_TO_WAYPOINT2",
+            SUCCEED: "TTS_EXITING",
             ABORT: "failed"
         }
+    )
+
+    sm.add_state(
+        "TTS_EXITING",
+        CoquiTTSState(),
+        transitions={
+            SUCCEED: "GO_TO_WAYPOINT2",
+            CANCEL: ABORT,
+        },
+        remappings = {"tts_text" : "tts-initiate_task"}   
     )
 
     sm.add_state(
@@ -69,6 +90,8 @@ def main():
     blackboard["waypoint_nametag"] = "entrance"
     blackboard["waypoint_exit_door"] = "inspection"
     blackboard['yaml_path'] = f'{home_dir}/ros2_ws/src/utbots_navigation/utbots_nav/map/arena_filled_waypoints.yaml'
+    blackboard["tts-initiate_task"] = "Initiating inspection. Going to the living room."
+    blackboard["tts-exit"] = "I have reached the living room. Exiting from kitchen door in 15 seconds."
 
     try:
         outcome = sm(blackboard)
