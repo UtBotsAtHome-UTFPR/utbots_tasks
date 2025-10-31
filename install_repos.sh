@@ -1,8 +1,5 @@
 #!/bin/bash
 
-set -euo pipefail
-export AMENT_TRACE_SETUP_FILES=""
-
 # Usage:
 #   ./install_repos.sh repos.txt /path/to/install/dir [optional:/path/to/venvs] [--setup-cfg]
 
@@ -74,7 +71,11 @@ update_setup_cfg_executable() {
 declare -A cloned_repos
 declare -A ran_top_setup
 
+<<<<<<< HEAD
 while read -r repo_url package_name venv_name branch; do
+=======
+while read -r repo_url package_name venv_name; do
+>>>>>>> ros2-dev
     if [[ -z "$repo_url" || -z "$package_name" || -z "$venv_name" ]]; then
         echo -e "${YELLOW}⚠️  Skipping invalid line: '$repo_url $package_name $venv_name'${NC}"
         continue
@@ -84,11 +85,16 @@ while read -r repo_url package_name venv_name branch; do
     clone_path="$INSTALL_DIR/$repo_name"
 
     # Clone repo only once
+<<<<<<< HEAD
     if [[ -z "${cloned_repos[$repo_url]+set}" ]]; then
+=======
+    if [[ -z "${cloned_repos[$repo_url]}" ]]; then
+>>>>>>> ros2-dev
         echo -e "\n${CYAN}🔧 Cloning repo: $repo_name${NC}"
         if [[ -d "$clone_path/.git" ]]; then
             echo -e "${YELLOW}➡️  Already cloned at $clone_path. Skipping clone.${NC}"
         else
+<<<<<<< HEAD
             if [[ -n "$branch" ]]; then
                 echo -e "${CYAN}📎 Checking out branch: $branch${NC}"
                 git clone --branch "$branch" --recurse-submodules "$repo_url" "$clone_path"
@@ -99,6 +105,9 @@ while read -r repo_url package_name venv_name branch; do
                 echo -e "${YELLOW}⚠️  Skipping invalid line: '$repo_url $package_name $venv_name'${NC}"
                 continue
             fi
+=======
+            git clone "$repo_url" "$clone_path"
+>>>>>>> ros2-dev
             if [[ $? -ne 0 ]]; then
                 echo -e "${RED}❌ Failed to clone $repo_url. Skipping.${NC}"
                 continue
@@ -113,10 +122,14 @@ while read -r repo_url package_name venv_name branch; do
     if [[ -f "$top_level_setup" ]]; then
         echo -e "${CYAN}🚀 Running top-level setup.sh in $repo_name...${NC}"
         chmod +x "$top_level_setup"
+<<<<<<< HEAD
         (cd "$clone_path" && ./setup.sh) || {
             echo -e "${RED}❌ setup.sh failed in $repo_name. Aborting.${NC}"
             exit 1
         }
+=======
+        (cd "$clone_path" && ./setup.sh)
+>>>>>>> ros2-dev
         ran_top_setup["$repo_name"]=true
     fi
 
@@ -160,10 +173,14 @@ while read -r repo_url package_name venv_name branch; do
             if [[ -f "$setup_script" ]]; then
                 echo -e "${CYAN}🚀 Running setup.sh for package $pkg_name...${NC}"
                 chmod +x "$setup_script"
+<<<<<<< HEAD
                 (cd "$package_path" && ./setup.sh) || {
                     echo -e "${RED}❌ setup.sh failed in $pkg_name. Aborting.${NC}"
                     exit 1
                 }
+=======
+                (cd "$package_path" && ./setup.sh)
+>>>>>>> ros2-dev
             else
                 echo -e "${YELLOW}⚠️  No setup.sh found in $package_path${NC}"
             fi

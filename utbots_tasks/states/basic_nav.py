@@ -1,19 +1,22 @@
+import rclpy
+from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSDurabilityPolicy
+from rclpy.node import Node
 from yasmin import State, Blackboard, StateMachine
 from yasmin_ros import MonitorState, ActionState
 from yasmin_ros.basic_outcomes import SUCCEED, CANCEL, ABORT
-from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSDurabilityPolicy
-from rclpy.node import Node
+
 from nav2_msgs.action import NavigateToPose
 from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped
 from std_msgs.msg import Int32
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import LaserScan
+
+from rclpy.time import Time
+
 import time
 import yaml
 import math
 from tf_transformations import quaternion_multiply, quaternion_from_euler
-from rclpy.node import Node
-import rclpy
 from math import sin, cos
 
 custom_qos = QoSProfile(
@@ -68,6 +71,24 @@ class GoToState(ActionState):
         goal = NavigateToPose.Goal()
         goal.pose.pose = blackboard["pose"]
         goal.pose.header.frame_id = "map"  # Set the reference frame to 'map'
+        return goal
+    
+class FollowPersonState(ActionState):
+    def __init__(self) -> None:
+         super().__init__(
+            NavigateToPose,  # action type
+            "/navigate_to_pose",  # action name
+            self.create_goal_handler,  # callback to create the goal
+            None,  # outcomes
+            None,  # callback to process the response
+        )
+
+    def create_goal_handler(self, blackboard: Blackboard) -> NavigateToPose.Goal:
+        goal = NavigateToPose.Goal()
+        goal.pose.header.stamp = Time().to_msg()
+        goal.pose.pose = blackboard["pose"]
+        goal.pose.header.frame_id = "odom"
+        #goal.behavior_tree = "follow_point"
         return goal
 
 class RotateInPlaceState(ActionState):
@@ -125,8 +146,26 @@ class GoToWaypointState(ActionState):
             None,  # callback to process the response
         )
 
+    # TODO: Implement a way to automatically get the current map yaml file path like:
+    # import subprocess
+    # try:
+    #     map_file = subprocess.check_output(
+    #     ["ros2", "param", "get", "/map_server", "yaml_filename"],
+    #     universal_newlines=True
+    #     ).rsplit("String value is: ")[1]
+    #     # map_file = map_file.strip()  # Remove any leading/trailing whitespace
+    #     print(f"Map file found: {map_file}")
+    #     blackboard
+    #     # Set the yaml_path in the blackboard
+    #     blackboard['yaml_path'] = map_file.rsplit(".yaml")[0]+"_waypoints.yaml"
+    #     print(f"Map file found: {blackboard['yaml_path']}")
+    # except:
+    #     blackboard['yaml_path'] =f'{home_dir}/ros2_ws/src/utbots_navigation/utbots_nav/map/pitaco_waypoints.yaml'
+    #     print(f"Map file found: {blackboard['yaml_path']}")
+    # # blackboard['waypoint_nametag'] = 'kitchen'
     def create_goal_handler(self, blackboard: Blackboard) -> NavigateToPose.Goal:
         nametag = blackboard["waypoint_nametag"]
+        print(nametag)
         yaml_path = blackboard["yaml_path"]
         if not nametag or not yaml_path:
             return ABORT

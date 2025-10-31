@@ -1,9 +1,9 @@
-https://github.com/utbotsathome-utfpr/utbots_tasks.git * ros_env 
-https://github.com/utbotsathome-utfpr/utbots_dependencies.git * ros_env ros2-dev
-https://github.com/utbotsathome-utfpr/utbots_vision.git * ros_env ros2-dev
-https://github.com/utbotsathome-utfpr/utbots_navigation.git * ros_env master
-https://github.com/utbotsathome-utfpr/utbots_voice.git utbots_nlu nlu_env ros2-dev
-https://github.com/utbotsathome-utfpr/utbots_voice.git display_emotions ros_env 
+https://github.com/utbotsathome-utfpr/utbots_tasks.git * ros_env
+https://github.com/utbotsathome-utfpr/utbots_dependencies.git * ros_env
+https://github.com/utbotsathome-utfpr/utbots_vision.git * ros_env
+https://github.com/utbotsathome-utfpr/utbots_navigation.git * ros_env
+https://github.com/utbotsathome-utfpr/utbots_voice.git utbots_nlu nlu_env
+https://github.com/utbotsathome-utfpr/utbots_voice.git display_emotions ros_env
 https://github.com/utbotsathome-utfpr/utbots_voice.git vad_ros ros_env
 https://github.com/utbotsathome-utfpr/utbots_voice.git whisper_ros ros_env
 https://github.com/utbotsathome-utfpr/utbots_voice.git ros_tts ros_env

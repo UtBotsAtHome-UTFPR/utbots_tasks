@@ -3,13 +3,19 @@ import rclpy
 import yasmin
 from yasmin import CbState, Blackboard, StateMachine
 from yasmin_ros import ActionState, ServiceState
+from yasmin import State
 from yasmin_ros import set_ros_loggers
 from yasmin_ros.basic_outcomes import SUCCEED, ABORT, CANCEL
 from yasmin_viewer import YasminViewerPub
 from utbots_actions.action import NewFace, Recognition
 
+import time
+
+from utbots_tasks.states.basic_nav import generate_rotate_in_place
+
 from std_srvs.srv import SetBool
 
+from math import pow, sqrt, sin, tan, radians, degrees
 
 '''HOW TO USE, PLEASE READ
 
@@ -21,7 +27,75 @@ If you need to change between testing just the state or the hierarquical state m
 
 '''
 
+class SavePosition(State):
+    def __init__(self) -> None:
+        super().__init__([SUCCEED, CANCEL])
 
+    def execute(self, blackboard: Blackboard) -> str:
+
+        key = blackboard["people_yaw"][-1]
+
+        # Lê pose aqui
+        position = blackboard["current_pose"]
+
+        for person in blackboard["person_list"]:
+            
+            if person["name"] == key:
+                person["position"] = position
+
+        return SUCCEED
+
+class IdentifyYAW(State):
+    def __init__(self) -> None:
+        super().__init__([SUCCEED, CANCEL])
+
+    def execute(self, blackboard: Blackboard) -> str:
+        if len(blackboard["people"]) == 0:
+            print("No people for whatever reason")
+            return CANCEL # No one in image
+        
+        # Read people direction list (if not exist create) if person does not have yaw set it up
+        if "people_yaw" not in blackboard:
+            print("create positions to state at during conversation")
+            blackboard["people_yaw"] = []#["Teste"]
+
+        people = blackboard["people"]
+
+        width  = 1280 # CHANGE TO 1920
+        theta_max = 78/2 # Logitech cam FOV 
+
+        for person in people:
+            print(person.category)
+            if person.category == "Unknown" or person.category in blackboard["people_yaw"]:
+                continue
+
+            x = int((person.xmin + person.xmax) / 2)
+            #y = int((person.ymin + person.ymax) / 2)
+            #print(x)
+
+            x = x - int(width/2.0)
+            theta = radians(theta_max * x / (width/2))
+
+            angle = degrees(theta)
+            print(-angle)
+            blackboard["people_yaw"].append(person.category)
+            blackboard["rotate"] = -angle
+            blackboard["rotation_count"] = 0
+            blackboard["people_count"] += 1
+            return SUCCEED
+            print(degrees(theta), end = "\n\n\n\n")
+        blackboard["rotation_count"] += 45
+        blackboard["rotate"] = 45
+        return CANCEL
+
+class CheckContinuation(State):
+    def __init__(self) -> None:
+        super().__init__([SUCCEED, CANCEL])
+
+    def execute(self, blackboard: Blackboard) -> str:
+        if blackboard["people_count"] >= 2 or blackboard["rotation_count"] >= 360:
+            return SUCCEED
+        return CANCEL
 
 class USBCamOn(ServiceState):
     def __init__(self) -> None:
@@ -78,6 +152,7 @@ class RecognitionState(ActionState):
         )
 
     def create_goal_handler(self, blackboard: Blackboard) -> Recognition.Goal:
+        time.sleep(0.5)
         goal = Recognition.Goal()
 
         if "img" in blackboard:
@@ -205,6 +280,65 @@ def generate_recognition_sm():
 
     return recognition_sm
 
+def get_people_position_sm(node):
+    sm = StateMachine(outcomes=[SUCCEED, CANCEL, ABORT])
+    
+    sm.add_state(
+        "RECOGNITION_SM",
+        generate_recognition_sm(),
+        transitions={
+            SUCCEED: "IDENTIFY_YAW",
+            CANCEL: ABORT,
+        },
+    )
+
+    sm.add_state(
+        "IDENTIFY_YAW",
+        IdentifyYAW(),
+        transitions={
+            SUCCEED: "ROTATE_TO_PERSON", #"ROTATE_TO_PERSON",
+            CANCEL: "ROTATE_45" #"ROTATE_45", # Girar 45º
+        },
+    )
+
+    sm.add_state(
+        "ROTATE_45",
+        generate_rotate_in_place(node),
+        transitions={
+            SUCCEED: "CHECK_CONTINUATION",
+            ABORT: ABORT
+        },
+    )
+
+    sm.add_state(
+        "ROTATE_TO_PERSON",
+        generate_rotate_in_place(node),
+        transitions={
+            SUCCEED: "SAVE_POSITION",
+            ABORT: ABORT
+        },
+    )
+
+    sm.add_state(
+        "SAVE_POSITION",
+        SavePosition(),
+        transitions={
+            SUCCEED: "CHECK_CONTINUATION",
+            CANCEL: ABORT
+        },
+    )
+    
+    sm.add_state(
+        "CHECK_CONTINUATION",
+        CheckContinuation(),
+        transitions={
+            SUCCEED: SUCCEED,
+            CANCEL: "RECOGNITION_SM"
+        },
+    )
+
+    return sm
+
 def state_test():
     yasmin.YASMIN_LOG_INFO("yasmin_action_client_demo")
 
@@ -306,6 +440,97 @@ def sm_test():
     if rclpy.ok():
         rclpy.shutdown()
 
+def yaw_test():
+    yasmin.YASMIN_LOG_INFO("yasmin_sm_client_demo")
+
+    # Initialize ROS 2
+    rclpy.init()
+
+    # Set up ROS 2 logs
+    set_ros_loggers()
+
+    node = rclpy.create_node("rotate_person")
+
+    # Create a finite state machine (FSM)
+    sm = StateMachine(outcomes=[SUCCEED, CANCEL])
+
+    sm.add_state(
+        "RECOGNITION_SM",
+        generate_recognition_sm(),
+        transitions={
+            SUCCEED: "IDENTIFY_YAW",
+            CANCEL: CANCEL,
+        },
+    )
+
+    sm.add_state(
+        "IDENTIFY_YAW",
+        IdentifyYAW(),
+        transitions={
+            SUCCEED: "ROTATE_TO_PERSON", #"ROTATE_TO_PERSON",
+            CANCEL: "ROTATE_45" #"ROTATE_45", # Girar 45º
+        },
+    )
+
+    sm.add_state(
+        "ROTATE_45",
+        generate_rotate_in_place(node),
+        transitions={
+            SUCCEED: "CHECK_CONTINUATION",
+            ABORT: CANCEL
+        },
+    )
+
+    sm.add_state(
+        "ROTATE_TO_PERSON",
+        generate_rotate_in_place(node),
+        transitions={
+            SUCCEED: "SAVE_POSITION",
+            ABORT: CANCEL
+        },
+    )
+
+    sm.add_state(
+        "SAVE_POSITION",
+        SavePosition(),
+        transitions={
+            SUCCEED: "CHECK_CONTINUATION",
+            CANCEL: CANCEL
+        },
+    )
+    
+    sm.add_state(
+        "CHECK_CONTINUATION",
+        CheckContinuation(),
+        transitions={
+            SUCCEED: SUCCEED,
+            CANCEL: "RECOGNITION_SM"
+        },
+    )
+
+    # Publish FSM information
+    YasminViewerPub("YASMIN_ACTION_CLIENT_DEMO", sm)
+
+    # Create an initial blackboard with the input value
+    blackboard = Blackboard()
+
+    blackboard["people_count"] = 0
+    blackboard["rotation_count"] = 0
+
+    # Execute the FSM
+    try:
+        outcome = sm(blackboard)
+        yasmin.YASMIN_LOG_INFO(outcome)
+    except KeyboardInterrupt:
+        if sm.is_running():
+            sm.cancel_state()  # Cancel the state if interrupted
+
+    # Shutdown ROS 2
+    if rclpy.ok():
+        rclpy.shutdown()
+
+
 def main():
     #state_test()
-    sm_test()
+    #sm_test()
+    yaw_test()
