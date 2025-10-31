@@ -385,8 +385,8 @@ class FramePersonState(State):
         # cv2.waitKey(0)
 
         return SUCCEED
-
-class GetPersonDistanceState(MonitorState):
+    
+class GetPersonPositionState(MonitorState):
     def __init__(self) -> None:
         super().__init__(Image, 
                          "/camera/camera/aligned_depth_to_color/image_raw", 
@@ -401,9 +401,6 @@ class GetPersonDistanceState(MonitorState):
 
         cv_image = self.cvBridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
         height, width = cv_image.shape[:2]
-
-        blackboard["camera_width"] = width
-        blackboard["camera_height"] = height
 
         # Determine the pixels for the skeleton positions 
         person_points = blackboard["mediapipe_points_normalized"]
@@ -427,11 +424,17 @@ class GetPersonDistanceState(MonitorState):
         if not valid_positions:
             # Meter um (0,0,0) e retornar success
             print("No pixel from person in depth scan")
+            pose = Pose()
 
-            person_position = {"x": 0, "y": 0, "distance": 0}
+            pose.position.x = 0.0
+            pose.position.y = 0.0
 
-            blackboard["person_position"] = person_position
-
+            pose.orientation.x = 0.0
+            pose.orientation.y = 0.0
+            pose.orientation.z = 0.0
+            pose.orientation.w = 1.0
+            
+            blackboard["pose"] = pose
             return SUCCEED
         
         distance = 0
@@ -448,11 +451,57 @@ class GetPersonDistanceState(MonitorState):
         avg_x /= len(valid_positions) - invalid
         avg_y /= len(valid_positions) - invalid
 
-        # Setar blackboard, deixar o resto pra outro estado
-        person_position = {"x": 0, "y": 0, "distance": 0}
-        
-        blackboard["person_position"] = person_position
-        return SUCCEED
+        # Até aqui os valores fazem sentido
+
+        # Centralize the camera reference at (0,0,0)
+        ## (x,y,z) are respectively horizontal, vertical and depth
+        ## Theta is the angle of the point with z axis in the zx plane
+        ## Phi is the angle of the point with z axis in the zy plane
+        ## x_max is the distance of the side border from the camera
+        ## y_max is the distance of the upper border from the camera
+
+        theta_max = blackboard["camera_horizontal_fov"] / 2
+        phi_max = blackboard["camera_vertical_fov"] / 2
+
+        img_x_max = width/2.0
+        img_y_max = height/2.0
+        img_x = avg_x - img_x_max
+        img_y = avg_y - img_y_max
+
+        # Caculate angle theta and phi
+        theta = radians(theta_max * img_x / img_x_max)
+        phi = radians(phi_max * img_y / img_y_max)
+
+        # Calculate x, y and z
+        z = distance * sin(phi)
+        y = -distance * cos(phi) * sin(theta)
+        x = distance * cos(phi) * cos(theta)
+
+        dx = x
+        dy = y # Ao usar tf o -y provavelmente pode ser transformado em y
+
+        yaw = math.atan2(dy, dx)
+        q = quaternion_from_euler(0.0, 0.0, yaw)
+
+        print(f"Estimated distance is: {distance}")
+        time.sleep(1)
+
+        pose = Pose()
+
+        pose.position.x = x
+        pose.position.y = y # Ao usar tf o -y provavelmente pode ser transformado em y
+        print(f"x is: {x}")
+        print(f"y is: {y}")
+        pose.orientation.x = q[0]
+        pose.orientation.y = q[1]
+        pose.orientation.z = q[2]
+        pose.orientation.w = q[3]
+        # pose.orientation.x = 0.0
+        # pose.orientation.y = 0.0
+        # pose.orientation.z = 0.0
+        # pose.orientation.w = 1.0
+
+        blackboard["pose"] = pose
     
 def find_seat_sm():
     yasmin.YASMIN_LOG_INFO("yasmin_action_client_demo")
@@ -581,6 +630,123 @@ def get_object_point():
     # Shutdown ROS
     if rclpy.ok():
         rclpy.shutdown()
+
+def locate_person_from_face():
+    yasmin.YASMIN_LOG_INFO("locate_person_from_face_demo")
+    rclpy.init()
+    
+    node = rclpy.create_node("locate_person_from_face_sm")
+
+     # Set up ROS 2 logs
+    set_ros_loggers()
+
+    sm = StateMachine(outcomes=[SUCCEED, CANCEL, ABORT])
+
+    # sm.add_state(
+    #     "RECOGNIZE",
+    #     RecognitionState(),
+    #     transitions={
+    #         SUCCEED: "FIND_PEOPLE",
+    #         ABORT: ABORT,
+    #     }
+    # )
+
+    # sm.add_state(
+    #     "FIND_PEOPLE",
+    #     FindObjectState(action_server="/YOLO_batch_detection", verbose=True),
+    #     transitions={
+    #         SUCCEED: "FRAME_PERSON",
+    #         'not_detected': ABORT,
+    #         CANCEL: CANCEL,
+    #         ABORT: ABORT
+    #     }
+    # )
+
+    # sm.add_state(
+    #     "FRAME_PERSON",
+    #     FramePerson(),
+    #     transitions={
+    #         SUCCEED:"TRACK_PERSON_FROM_CROPPED",
+    #         ABORT:ABORT
+    #     }
+    # )
+
+    # sm.add_state(
+    #     "TRACK_PERSON_FROM_CROPPED",
+    #     GetPersonPointState(),
+    #     transitions={
+    #         SUCCEED:"TRACK_PERSON",
+    #         ABORT:ABORT
+    #     },
+    #     remappings = {"mediapipe_img" : "cropped_person"}
+    # )
+
+    sm.add_state(
+        "TRACK_PERSON",
+        GetPersonPointState(),
+        transitions={
+            SUCCEED:"GET_PERSON_POSE_FROM_TORSO",
+            ABORT:ABORT
+        },
+    )
+
+    # Estado track person com a imagem não cropada pras partes que não terão bounding box
+    sm.add_state(
+        "GET_PERSON_POSE_FROM_TORSO",
+        GetPersonPositionState(),
+        transitions={
+            SUCCEED:"NAV_FOLLOW",
+            ABORT:ABORT
+        },
+    )
+
+    # Estado monitor de estimar a posição da pessoa a partir da posição da posição do torso dela
+    # sm.add_state(
+    #     "FRAME_PERSON",
+    #     FramePersonState(),
+    #     transitions={
+    #         SUCCEED : "PERSON_TO_NAV_GOAL",
+    #         ABORT : ABORT
+    #     }
+    # )
+
+    sm.add_state(
+        "NAV_FOLLOW",
+        FollowPersonState(),
+        transitions={
+            SUCCEED:"TRACK_PERSON",
+            ABORT:ABORT,
+            CANCEL:ABORT
+        }
+    )
+
+    blackboard = Blackboard()
+
+    # Face recognition variables
+    blackboard["person_name"] = "Teste"
+    blackboard['objects'] = ['person']
+
+    # Yolo variables
+    blackboard["batch_size"] = 10
+    blackboard["iou_threshold"] = 0.5
+    blackboard["support_threshold"] = 0.6
+
+    blackboard["camera_width"] = 0
+    blackboard["camera_height"] = 0
+
+    blackboard["camera_horizontal_fov"] = 69.4
+    blackboard["camera_vertical_fov"] = 42.5
+
+    # Publish FSM information
+    YasminViewerPub("YASMIN_ACTION_CLIENT_DEMO", sm)
+
+    try:
+        outcome = sm(blackboard)
+        yasmin.YASMIN_LOG_INFO(outcome)
+    except KeyboardInterrupt:
+        if sm.is_running():
+            sm.cancel_state()  # Cancel the state if interrupted
+
 
 def main():
     #find_seat_sm()

@@ -46,7 +46,7 @@ class DetectionLogState(State):
 
             for bbox in bboxes:
                 # If bbox.Class doesn't exist, replace with bbox.class_id or appropriate field
-                detected_class = getattr(bbox, "Class", getattr(bbox, "id", "Unknown"))
+                detected_class = getattr(bbox, "Class", getattr(bbox, "category", "Unknown"))
                 c.drawString(100, text_height, f"- {detected_class}")
                 text_height -= 12
 

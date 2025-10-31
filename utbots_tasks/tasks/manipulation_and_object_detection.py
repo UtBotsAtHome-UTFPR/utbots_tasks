@@ -78,7 +78,7 @@ def main():
         "DETECTION_LOG",
         DetectionLogState(),
         transitions={
-            SUCCEED: "ESTIMATE_POINT",
+            SUCCEED: SUCCEED,#"ESTIMATE_POINT",
             ABORT: ABORT
         },
     )
@@ -97,23 +97,23 @@ def main():
 
     ### MANIPULATE STATES
 
-    sm.add_state(
-        "ESTIMATE_POINT",
-        EstimateGraspPoint(),
-        transitions={
-            SUCCEED: "PICKUP_OBJECT",
-            CANCEL: "ESTIMATE_POINT"
-        }
-    )
+    # sm.add_state(
+    #     "ESTIMATE_POINT",
+    #     EstimateGraspPoint(),
+    #     transitions={
+    #         SUCCEED: "PICKUP_OBJECT",
+    #         CANCEL: "ESTIMATE_POINT"
+    #     }
+    # )
 
-    sm.add_state(
-        "PICKUP_OBJECT", 
-        SendGraspPointToPlanner(node),
-        transitions={
-            SUCCEED:SUCCEED,
-            CANCEL:CANCEL
-        }
-    )
+    # sm.add_state(
+    #     "PICKUP_OBJECT", 
+    #     SendGraspPointToPlanner(node),
+    #     transitions={
+    #         SUCCEED:SUCCEED,
+    #         CANCEL:CANCEL
+    #     }
+    # )
 
     # sm.add_state(
     #     "GO_TO_DELIVERY_LOCATION",
@@ -136,8 +136,9 @@ def main():
     blackboard["support_threshold"] = 0.4
     blackboard["batch_size"] = 50
     blackboard["objects"] = []
+    map_name = "cbr2025v2"
     blackboard['yaml_path'] = f'{home_directory}/ros2_ws/src/utbots_navigation/utbots_nav/map/{map_name}_waypoints.yaml'
-    blackboard['wp-object_collection'] = 'room'
+    blackboard['wp-object_collection'] = 'object_shelf'
     blackboard['iterations'] = 3  # Number of iterations for retrying object detection
     blackboard["fov_hor"] = 69.4
     blackboard["fov_ver"] = 42.5

@@ -5,7 +5,7 @@ from yasmin_ros import set_ros_loggers
 from yasmin_ros.basic_outcomes import SUCCEED, ABORT, CANCEL
 from yasmin_viewer import YasminViewerPub
 
-from utbots_tasks.states.basic_face import generate_new_face_sm, generate_recognition_sm, USBCamOff, USBCamOn
+from utbots_tasks.states.basic_face import generate_new_face_sm, generate_recognition_sm, NewFaceState, RecognitionState, USBCamOff, USBCamOn
 from utbots_tasks.states.basic_nav import generate_rotate_in_place, SetInitialPose
 from utbots_tasks.states.basic_voice import CoquiTTSState, get_process_nlu, generate_ask_name_sm, whisper_process_cb
 from utbots_tasks.states.basic_vision import FindObjectState
@@ -26,7 +26,7 @@ def cb_save_operator_name(blackboard: Blackboard):
 
 def cb_wait(blackboard: Blackboard):
     import time
-    time.sleep(15)
+    time.sleep(60)
     return SUCCEED
 
 def main():
@@ -41,14 +41,7 @@ def main():
     sm = StateMachine(outcomes=[SUCCEED, CANCEL, ABORT])
     yasmin.YASMIN_LOG_INFO("person_recognition_sm started")
 
-    sm.add_state(
-        "CAM_OFF",
-        USBCamOff(),
-        transitions={
-            SUCCEED: "TTS_INITIATING",#"SET_INIT_POSE",
-            ABORT: ABORT
-        }
-    )
+
 
     # sm.add_state(
     #     "SET_INIT_POSE",
@@ -63,20 +56,12 @@ def main():
         "TTS_INITIATING",
         CoquiTTSState(),
         transitions={
-            SUCCEED: "START_CAM_FIND_OPERATOR_ALONE",
+            SUCCEED: "TTS_COME_IN",
             CANCEL: ABORT,
         },
         remappings = {"tts_text" : "tts-initiate_task"}   
     )
 
-    sm.add_state(
-        "START_CAM_FIND_OPERATOR_ALONE",
-        USBCamOn(),
-        transitions={
-            SUCCEED: "TTS_COME_IN",
-            ABORT: ABORT
-        }
-    )
 
     sm.add_state(
         "TTS_COME_IN",
@@ -90,7 +75,7 @@ def main():
 
     sm.add_state(
         "FIND_OPERATOR_ALONE",
-        FindObjectState(action_server="/yolo_node1/YOLO_batch_detection"),
+        FindObjectState(action_server="/YOLO_batch_detection"),
         transitions={
             SUCCEED: "TTS_GREET",
             CANCEL: "FIND_OPERATOR_ALONE",
@@ -151,7 +136,7 @@ def main():
 
     sm.add_state(
         "NEW_FACE_SM",
-        generate_new_face_sm(),
+        NewFaceState(),
         transitions={
             SUCCEED: "TTS_PERSON_REGISTERED",
             CANCEL: ABORT,
@@ -163,20 +148,13 @@ def main():
         "TTS_PERSON_REGISTERED",
         CoquiTTSState(),
         transitions={
-            SUCCEED: "START_CAM_FIND_OPERATOR_CROWD",
+            SUCCEED: "30S_WAIT",
             CANCEL: ABORT,
         },
         remappings = {"tts_text" : "tts-person_registered"}
     )
 
-    sm.add_state(
-        "START_CAM_FIND_OPERATOR_CROWD",
-        USBCamOn(),
-        transitions={
-            SUCCEED: "30S_WAIT",
-            ABORT: ABORT
-        }
-    )
+    
     sm.add_state(
         "30S_WAIT",
         yasmin.CbState([SUCCEED],cb_wait),
@@ -196,7 +174,7 @@ def main():
 
     sm.add_state(
         "FIND_PEOPLE",
-        FindObjectState(action_server="/yolo_node1/YOLO_batch_detection"),
+        FindObjectState(action_server="/YOLO_batch_detection"),
         transitions={
             SUCCEED: "RECOGNITION_SM",
             CANCEL: CANCEL,
@@ -208,7 +186,7 @@ def main():
 
     sm.add_state(
         "RECOGNITION_SM",
-        generate_recognition_sm(),
+        RecognitionState(),
         transitions={
             SUCCEED: "GENERATE_LOG",
             CANCEL: CANCEL,
@@ -259,7 +237,7 @@ def main():
     # blackboard["tts_text"] = "Initiating person recognition task."
     blackboard["tts-come_in"] = "Hello,please come in and stand in front of me."
     blackboard["tts-greet"] = "Hello, I am Hestia."
-    blackboard["ask_name"] = "What is your name?"
+    blackboard["ask_name"] = "What is your name.Please say my name is."
     blackboard["tts-instruct_register_face"] = "Please stand still and face me while I register your face."
     blackboard["tts-person_registered"] = "Your face has been registered successfully. Please go to the crowd. I will turn in 30 seconds."
     try:

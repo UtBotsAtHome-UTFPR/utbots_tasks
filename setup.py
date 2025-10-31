@@ -38,7 +38,8 @@ setup(
             'manipulation_object_detection = utbots_tasks.tasks.manipulation_and_object_detection:main',
             'receptionist = utbots_tasks.tasks.receptionist:main',
             'recep_calouros = utbots_tasks.tasks.recep_calouros:main',
-            'follow_person = utbots_tasks.states.vision_nav:locate_person_from_face'
+            'follow_me = utbots_tasks.tasks.follow_me:main',
+            'carry_my_luggage = utbots_tasks.tasks.carry_my_luggage:main'
         ],
     },
 )

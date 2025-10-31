@@ -13,7 +13,6 @@ def generate_launch_description():
     # Paths to other launch files
     nav_launch_path = os.path.join(
         get_package_share_directory('utbots_nav'), 'launch', 'nav.launch.py')
-
     recognition_launch_path = os.path.join(
         get_package_share_directory('utbots_face_recognition'), 'launch', 'recognition.launch.py')
 
@@ -32,14 +31,14 @@ def generate_launch_description():
     return LaunchDescription([
  
         # Include utbots_nav launch file with arguments
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(nav_launch_path),
-            launch_arguments={
-                'use_sim_time': 'false',
-                'use_imu': 'false',
-                'map': f'{home_dir}/ros2_ws/src/utbots_navigation/utbots_nav/map/cbr2025v2.yaml'
-            }.items()
-        ),
+        # IncludeLaunchDescription(
+        #     PythonLaunchDescriptionSource(nav_launch_path),
+        #     launch_arguments={
+        #         'use_sim_time': 'false',
+        #         'use_imu': 'false',
+        #         'map': f'{home_dir}/ros2_ws/src/utbots_navigation/utbots_nav/map/pitaco.yaml'
+        #     }.items()
+        # ),
 
         # Include face recognition launch file
         IncludeLaunchDescription(
@@ -55,22 +54,55 @@ def generate_launch_description():
                 }.items() 
         ),
 
-        # Launch yolov8_ros yolo_node
-        Node(
-            package='yolov8_ros',
-            executable='yolo_node',
-            name='yolo_node',
-            output='screen',
-            parameters=[{
-                'camera_topic': '/camera/camera/color/image_raw'
-            }]
-        ),
-
-        # Launch usb_cam_node_exe with parameter
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(os.path.join(realsense_launch_path, 'rs_launch.py')),
             #launch_arguments={}
         ),
+
+        # Launch yolov8_ros yolo_node
+        # YOLO node for Robot 1
+        Node(
+            package='yolov8_ros',
+            executable='yolo_node',
+            name='yolo_node1',
+            namespace='yolo_node1',
+            output='screen',
+            parameters=[{
+                'camera_topic': '/camera/camera/color/image_raw',
+                'weights': f'{home_dir}/ros2_ws/src/yolo11n.pt'
+            }]
+        ),
+
+        # Launch usb_cam_node_exe with parameter
+        # Node(
+        #     package='usb_cam',
+        #     executable='usb_cam_node_exe',
+        #     name='usb_cam',
+        #     output='screen',
+        #     parameters=[{
+        #         'video_device': '/dev/video0',
+        #         'framerate': 30.0,
+        #         'io_method': 'mmap',
+        #         'frame_id': 'camera',
+        #         'pixel_format': 'mjpeg2rgb',
+        #         'av_device_format': 'YUV422P',
+        #         'image_width': 1280,
+        #         'image_height': 720,
+        #         'camera_name': 'test_camera',
+        #         'camera_info_url': f'file://{home_dir}/.ros/camera_info/default_cam.yaml',
+        #         'brightness': -1,
+        #         'contrast': -1,
+        #         'saturation': -1,
+        #         'sharpness': -1,
+        #         'gain': -1,
+        #         'auto_white_balance': True,
+        #         'white_balance': 4000,
+        #         'autoexposure': True,
+        #         'exposure': 100,
+        #         'autofocus': False,
+        #         'focus': -1
+        #     }]
+        # ),
         
         Node(
             package='utbots_nlu',
@@ -81,7 +113,7 @@ def generate_launch_description():
             parameters=[
                 {
                     # 'model_path':
-                    f'{home_dir}/ros2_ws/src/utbots_nlu/rasa/models/20251015-143654-decidable-liqueur.tar.gz',
+                    # f'{home_dir}/ros2_ws/src/utbots_nlu/rasa/models/20250716-120427-brass-queue.tar.gz',
                   }
             ]
         ),
@@ -103,4 +135,12 @@ def generate_launch_description():
                 'rgb_topic': "/camera/camera/color/image_raw"   # <-- new value here
             }.items()
         ),
+
+        # #Launch receptionist node
+        # Node(
+        #     package='utbots_tasks',
+        #     executable='receptionist',
+        #     name='receptionist',
+        #     output='screen'
+        # )
     ])

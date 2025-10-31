@@ -66,9 +66,9 @@ def main():
     YasminViewerPub("YASMIN_ACTION_CLIENT_DEMO", sm)
 
     blackboard = Blackboard()
-    blackboard["waypoint_nametag"] = "entrance"
+    blackboard["waypoint_nametag"] = "inspection"
     blackboard["waypoint_exit_door"] = "inspection"
-    blackboard['yaml_path'] = f'{home_dir}/ros2_ws/src/utbots_navigation/utbots_nav/map/arena_filled_waypoints.yaml'
+    blackboard['yaml_path'] = f'{home_dir}/ros2_ws/src/utbots_navigation/utbots_nav/map/cbr2025v2_waypoints.yaml'
 
     try:
         outcome = sm(blackboard)

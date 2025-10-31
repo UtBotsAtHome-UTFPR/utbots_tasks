@@ -165,6 +165,7 @@ class GoToWaypointState(ActionState):
     # # blackboard['waypoint_nametag'] = 'kitchen'
     def create_goal_handler(self, blackboard: Blackboard) -> NavigateToPose.Goal:
         nametag = blackboard["waypoint_nametag"]
+        print(nametag)
         yaml_path = blackboard["yaml_path"]
         if not nametag or not yaml_path:
             return ABORT

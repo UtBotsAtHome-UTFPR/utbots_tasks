@@ -161,7 +161,10 @@ def generate_check_stop_sm():
     # "bahia_climate",        # 19
     # "bahia_economy",        # 20
 
-
+def cb_wait(blackboard: Blackboard):
+    import time
+    time.sleep(5)
+    return SUCCEED
 
 def main():
     yasmin.YASMIN_LOG_INFO("yasmin_action_client_demo")
@@ -174,11 +177,8 @@ def main():
     blackboard = Blackboard()
 
     blackboard["person"] = "person"
-    blackboard["rotation_count"] = 0
-    blackboard["tts-initiate_task"] = "I am ready to begin the task, please open the door."
     blackboard["check_operator_ready"] = "Are you ready? Can I take pictures of you.Please say yes."
-    blackboard["tell_operator_to_move"] = "As soon as I start moving you may go.For me to stop please say stop."
-    blackboard["tts_emergency"] = "Please stand in front of me."
+    blackboard["tell_operator_to_move"] = "Please stand in front of me and look at the camera."
 
     blackboard["person_name"] = "Teste"
     blackboard['objects'] = ['person']
@@ -204,222 +204,32 @@ def main():
     sm = StateMachine(outcomes=[SUCCEED, "success", "failed", CANCEL, ABORT])
 
     sm.add_state(
-        "WAIT_DOOR",
-        WaitDoorOpenState(),
-        transitions={
-            SUCCEED: "GOTO_WAYPOINT1",
-            CANCEL: "WAIT_DOOR",
-            ABORT: "failed"
-        }
-    )
-
-    sm.add_state(
-        "GOTO_WAYPOINT1",
-        GoToWaypointState(),
-        transitions={
-            SUCCEED: "GOTO_WAYPOINT2",
-            CANCEL: ABORT,
-            ABORT: ABORT
-        },
-        remappings={
-            "waypoint_nametag" : "follow_me_wp2"
-        }
-    )
-
-    sm.add_state(
-        "GOTO_WAYPOINT2",
-        GoToWaypointState(),
-        transitions={
-            SUCCEED: "TTS_EMERGENCY",
-            CANCEL: ABORT,
-            ABORT: ABORT
-        },
-        remappings={
-            "waypoint_nametag" : "follow_me_wp1"
-        }
-    )
-
-    sm.add_state(
-        "TTS_EMERGENCY",
+        "TTS_WILL_FOLLOW",
         CoquiTTSState(),
         transitions={
-            SUCCEED: "WAIT_FOR_OPERATOR",
-            CANCEL: ABORT,
+            SUCCEED : "5S_WAIT",
+            ABORT : ABORT
         },
-        remappings = {"tts_text" : "tts_emergency"}
+        remappings = {"tts_text" : "tell_operator_to_move"}
     )
 
-
     sm.add_state(
-        "WAIT_FOR_OPERATOR",
-        FindObjectState(action_server="/YOLO_batch_detection"),
+        "5S_WAIT",
+        yasmin.CbState([SUCCEED],cb_wait),
         transitions={
             SUCCEED: "NEW_FACE",
-            CANCEL: "WAIT_FOR_OPERATOR",
-            "not_detected" : "WAIT_FOR_OPERATOR",
-            ABORT: "failed",
-        },
-        remappings={"objects": "person", "detections": "bboxes2"}
+        }
     )
 
-    # # Trocar isso por uma sub-máquina is operator ready com stt e nlu
-    # # Perguntar para o operador se ele está pronto para começar (pra garantir que a pessoa identificada foi o operador, se não responder ou der ruim volta pro find_operator)
-    sm.add_state(
-        "TTS_CHECK_OPERATOR_READY",
-        CoquiTTSState(),
-        transitions={
-            SUCCEED: "CALLING_WHISPER",
-            CANCEL: ABORT,
-        },
-        remappings = {"tts_text" : "check_operator_ready"}
-    )
-
-    sm.add_state(
-        "CALLING_WHISPER",
-        WhisperSTTState(),
-        transitions={
-            SUCCEED: "WHISPER_PROCESS",
-            CANCEL: ABORT,
-            ABORT: ABORT,
-        },
-    )
-
-    sm.add_state(
-        "WHISPER_PROCESS",
-        CbState(["process_whisper1","process_whisper2","process_whisper3"],whisper_process_cb),
-        transitions={
-            "process_whisper1": "CALLING_WHISPER",
-            "process_whisper2": "NLU_INFERENCE",
-            # "process_whisper3": "outcome4",
-
-        },
-    )
-
-    sm.add_state(
-        "NLU_INFERENCE",
-        NLUInference(),
-        transitions={
-            SUCCEED: "NLU_PROCESS",
-            CANCEL: ABORT,
-            ABORT: ABORT,
-        },
-        remappings={"nlu_input_text": "whispered"},
-    )
-
-    sm.add_state(
-        "NLU_PROCESS",
-        NLUProcess(True),  # Set verbose to True for detailed logging     
-        transitions={
-            PROCESS_NLU[0]: "TTS_CHECK_OPERATOR_READY",
-            PROCESS_NLU[1]: "TTS_CHECK_OPERATOR_READY",
-            PROCESS_NLU[2]: "NEW_FACE",
-            PROCESS_NLU[3]: "TTS_CHECK_OPERATOR_READY",
-            PROCESS_NLU[4]: "TTS_CHECK_OPERATOR_READY",
-            PROCESS_NLU[5]: "TTS_CHECK_OPERATOR_READY",
-            PROCESS_NLU[6]: "TTS_CHECK_OPERATOR_READY",
-            PROCESS_NLU[7]: "TTS_CHECK_OPERATOR_READY",
-            PROCESS_NLU[8]: "TTS_CHECK_OPERATOR_READY",
-            PROCESS_NLU[9]: "TTS_CHECK_OPERATOR_READY",
-            PROCESS_NLU[10]: "TTS_CHECK_OPERATOR_READY",
-            PROCESS_NLU[11]: "TTS_CHECK_OPERATOR_READY",
-            PROCESS_NLU[12]: "TTS_CHECK_OPERATOR_READY",
-            PROCESS_NLU[13]: "TTS_CHECK_OPERATOR_READY",
-            PROCESS_NLU[14]: "TTS_CHECK_OPERATOR_READY",
-            PROCESS_NLU[15]: "TTS_CHECK_OPERATOR_READY",
-            PROCESS_NLU[16]: "TTS_CHECK_OPERATOR_READY",
-            PROCESS_NLU[17]: "TTS_CHECK_OPERATOR_READY",
-            PROCESS_NLU[18]: "TTS_CHECK_OPERATOR_READY",
-            PROCESS_NLU[19]: "TTS_CHECK_OPERATOR_READY",
-        },
-    )
 
     sm.add_state(
         "NEW_FACE",
         NewFaceState(),
         transitions={
-            SUCCEED : "TTS_ASK_READY",
+            SUCCEED : "RECOGNIZE",
             CANCEL : ABORT,
             ABORT : ABORT
         }
-    )
-
-    sm.add_state(
-        "TTS_ASK_READY",
-        CoquiTTSState(),
-        transitions={
-            SUCCEED : "RECOGNIZE",
-            ABORT : ABORT
-        },
-        remappings = {"tts_text" : "tell_operator_to_move"}
-    )
-
-    sm.add_state(
-        "CALLING_WHISPER2",
-        WhisperSTTState(),
-        transitions={
-            SUCCEED: "WHISPER_PROCESS2",
-            CANCEL: ABORT,
-            ABORT: ABORT,
-        },
-    )
-
-    sm.add_state(
-        "WHISPER_PROCESS2",
-        CbState(["process_whisper1","process_whisper2","process_whisper3"],whisper_process_cb),
-        transitions={
-            "process_whisper1": "CALLING_WHISPER2",
-            "process_whisper2": "NLU_INFERENCE2",
-            # "process_whisper3": "outcome4",
-
-        },
-    )
-
-    sm.add_state(
-        "NLU_INFERENCE2",
-        NLUInference(),
-        transitions={
-            SUCCEED: "NLU_PROCESS2",
-            CANCEL: ABORT,
-            ABORT: ABORT,
-        },
-        remappings={"nlu_input_text": "whispered"},
-    )
-
-    sm.add_state(
-        "NLU_PROCESS2",
-        NLUProcess(True),  # Set verbose to True for detailed logging     
-        transitions={
-            PROCESS_NLU[0]: "TTS_ASK_READY",
-            PROCESS_NLU[1]: "TTS_ASK_READY",
-            PROCESS_NLU[2]: "TTS_WILL_FOLLOW",
-            PROCESS_NLU[3]: "TTS_ASK_READY",
-            PROCESS_NLU[4]: "TTS_ASK_READY",
-            PROCESS_NLU[5]: "TTS_ASK_READY",
-            PROCESS_NLU[6]: "TTS_ASK_READY",
-            PROCESS_NLU[7]: "TTS_ASK_READY",
-            PROCESS_NLU[8]: "TTS_ASK_READY",
-            PROCESS_NLU[9]: "TTS_ASK_READY",
-            PROCESS_NLU[10]: "TTS_ASK_READY",
-            PROCESS_NLU[11]: "TTS_ASK_READY",
-            PROCESS_NLU[12]: "TTS_ASK_READY",
-            PROCESS_NLU[13]: "TTS_ASK_READY",
-            PROCESS_NLU[14]: "TTS_ASK_READY",
-            PROCESS_NLU[15]: "TTS_ASK_READY",
-            PROCESS_NLU[16]: "TTS_ASK_READY",
-            PROCESS_NLU[17]: "TTS_ASK_READY",
-            PROCESS_NLU[18]: "TTS_ASK_READY",
-            PROCESS_NLU[19]: "TTS_ASK_READY",
-        },
-    )
-
-    sm.add_state(
-        "TTS_WILL_FOLLOW",
-        CoquiTTSState(),
-        transitions={
-            SUCCEED : "RECOGNIZE",
-            ABORT : ABORT
-        },
-        remappings = {"tts_text" : "tell_operator_to_move"}
     )
 
     sm.add_state(
