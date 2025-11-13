@@ -7,7 +7,7 @@ package_name = 'utbots_tasks'
 setup(
     name=package_name,
     version='0.0.0',
-    packages=find_packages(include=['utbots_tasks', 'utbots_tasks.*'],exclude=['test']),
+    packages=find_packages(include=['utbots_tasks', 'utbots_tasks.*'], exclude=['test']),
     data_files=[
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
@@ -20,9 +20,8 @@ setup(
     maintainer_email='utbots.home@gmail.com',
     description='TODO: Package description',
     license='TODO: License declaration',
-    # tests_require=['pytest'],
     extras_require={
-    'test': ['pytest', 'other-test-deps'],
+        'test': ['pytest'],
     },
     entry_points={
         'console_scripts': [
@@ -41,8 +40,6 @@ setup(
             'follow_me = utbots_tasks.tasks.follow_me:main',
             'carry_my_luggage = utbots_tasks.tasks.carry_my_luggage:main',
             'beverage_search = utbots_tasks.tasks.beverage_search:main',
-            'voice_nav_smach = utbots_tasks.tasks.voice_nav:main',
-            'receptionist = utbots_tasks.tasks.receptionist:main',
             'qa = utbots_tasks.tasks.qa:main'
         ],
     },
