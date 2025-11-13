@@ -2,11 +2,16 @@ import yasmin
 import rclpy
 import yasmin
 import json
+# from yasmin import State, Blackboard
+# from yasmin import ActionState, SUCCEED, ABORT
+# from nav2_msgs.action import NavigateToPose
+from utbots_actions.action import TextToSpeech, Transcription, InterpretNLU, InterpretLlama
+import yasmin
+import rclpy
 from yasmin import State, CbState, Blackboard, StateMachine
 from yasmin_ros import ActionState
 from yasmin_ros import set_ros_loggers
 from yasmin_ros.basic_outcomes import SUCCEED, ABORT, CANCEL
-
 from utbots_actions.action import TextToSpeech, Transcription, InterpretNLU
 from std_msgs.msg import String
 
@@ -29,6 +34,28 @@ class Person():
     def __repr__(self):
         return f"Person(name={self.name})"
 
+from std_msgs.msg import String
+# from yasmin_viewer import YasminViewerPub
+
+#BLACKBOARD:
+# blackboard["tts_text"]=None
+# blackboard["text"]
+# blackboard["whispered"]
+# blackboard["nlu_input_text"]
+# blackboard["nlu_output"] = (
+#     response.nlu_output
+# )  # Store the result sequence in the blackboard
+
+# blackboard["nlu_intent"] = (
+#     response.task
+# )  # Store the result sequence in the blackboard
+
+# blackboard["nlu_data"] = (
+#     response.data
+# )  # Store the result sequence in the blackboard
+
+# blackboard["waypoint_nametag"]=data
+
 class SendTTSState(ActionState):
     def __init__(self) -> None:
          super().__init__(
@@ -37,6 +64,7 @@ class SendTTSState(ActionState):
             self.create_goal_handler,  # callback to create the goal
             None,  # outcomes
             None,  # callback to process the response
+            None   # feedback callback
         )
 
     def create_goal_handler(self, blackboard: Blackboard) -> TextToSpeech.Goal:
@@ -257,6 +285,32 @@ def coqui_print_result(blackboard: Blackboard) -> str:
     """
     yasmin.YASMIN_LOG_INFO(f"Result: {blackboard['whispered']}")
     return SUCCEED
+
+##############
+class LlamaState(ActionState):
+    def __init__(self) -> None:
+        super().__init__(
+            InterpretLlama,
+            'llama_inference', 
+            self.create_goal_handler, None, 
+            self.response_handler, 
+            None,
+            )
+    def create_goal_handler(self, blackboard: Blackboard) -> InterpretLlama.Goal:
+        goal = InterpretLlama.Goal()
+        text_input = blackboard["whispered"]
+        if (text_input is not None):
+            goal.text_input.data = blackboard["whispered"] 
+        else:
+            goal.text_input.data =  "No questions were asked." # Retrieve the input value 'n' from the blackboard
+        return goal
+    def response_handler(self, blackboard: Blackboard, response: InterpretLlama.Result) -> str:
+        blackboard["llm_output"] = (response.llm_output.data)
+        if(blackboard["llm_output"][-1] != "."):
+            blackboard["llm_output"] += "."
+        yasmin.YASMIN_LOG_INFO(f"LLM Answer: {response.llm_output.data}")
+        return SUCCEED
+
 
 class NLUInference (ActionState):
     """
@@ -956,7 +1010,6 @@ def generate_ask_drink_sm():
     )
     return ask_drink_sm
 
-
 def ask_interested_in_sm():
     ask_interested_in_sm = StateMachine(outcomes=[SUCCEED, CANCEL, ABORT])
     ask_interested_in_sm.add_state(
@@ -1028,3 +1081,5 @@ def ask_interested_in_sm():
     )
 
     return ask_interested_in_sm
+
+#########################################

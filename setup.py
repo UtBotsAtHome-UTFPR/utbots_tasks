@@ -39,7 +39,11 @@ setup(
             'receptionist = utbots_tasks.tasks.receptionist:main',
             'recep_calouros = utbots_tasks.tasks.recep_calouros:main',
             'follow_me = utbots_tasks.tasks.follow_me:main',
-            'carry_my_luggage = utbots_tasks.tasks.carry_my_luggage:main'
+            'carry_my_luggage = utbots_tasks.tasks.carry_my_luggage:main',
+            'beverage_search = utbots_tasks.tasks.beverage_search:main',
+            'voice_nav_smach = utbots_tasks.tasks.voice_nav:main',
+            'receptionist = utbots_tasks.tasks.receptionist:main',
+            'qa = utbots_tasks.tasks.qa:main'
         ],
     },
 )
