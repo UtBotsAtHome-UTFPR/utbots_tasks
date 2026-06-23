@@ -28,8 +28,8 @@ def generate_launch_description():
         #WHISPER,
         DeclareLaunchArgument('whisper_sync_start',default_value='false'),
         DeclareLaunchArgument('whisper_stt_timeout',default_value='15.0'),
-        DeclareLaunchArgument('whisper_def_model',default_value='openai/whisper-large-v3-turbo'),
-        
+        DeclareLaunchArgument('whisper_def_model',default_value='openai/whisper-large-v3-turbo'),    
+            
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(os.path.join(stt_launch_dir, 'stt_launch.py')),
             launch_arguments={
@@ -44,7 +44,7 @@ def generate_launch_description():
             name='rasa_nlu_interpreter',
             # output='screen',
             emulate_tty=True,
-            prefix=['bash -c "source /home/joao/nlu/bin/activate && $0 $@ " exec'],
+            prefix=['bash -c "source /home/joao/nlu_env/bin/activate && $0 $@ " exec'],
             parameters=[
                 {
                   }
@@ -55,7 +55,7 @@ def generate_launch_description():
             executable = 'llama_server',
             name='llama_server',
             emulate_tty=True,
-            prefix=['bash -c "source /home/joao/llama/bin/activate && $0 $@ " exec'],
+            prefix=['bash -c "source /home/joao/llm_env/bin/activate && $0 $@ " exec'],
             parameters=[
                 {
                   }
