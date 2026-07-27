@@ -3,38 +3,12 @@ import py_trees_ros
 import py_trees_ros.action_clients
 import math
 import yaml
+import time
 from nav2_msgs.action import NavigateToPose
 from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped
 from nav_msgs.msg import Odometry
 from tf_transformations import quaternion_from_euler, quaternion_multiply
-
-# From utbots_tasks/utbots_tasks/state/basic_nav.py/GoToState
-class GoToState(py_trees_ros.action_clients.FromBlackboard):
-    def __init__(self, name="Go To State"):
-        super().__init__(
-            name=name,
-            action_type=NavigateToPose,
-            action_name="/navigate_to_pose",
-            key="/goal" 
-        )
-        
-        # Record what is necessary for reading and writing. 
-        self.blackboard.register_key(key="pose", access=py_trees.common.Access.READ)
-        self.blackboard.register_key(key="/goal", access=py_trees.common.Access.WRITE)
-
-    def initialise(self):
-        nav2_goal = NavigateToPose.Goal()
-
-        # Reads pose from memory
-        if self.blackboard.exists("pose"):
-            nav2_goal.pose.pose = self.blackboard.pose
-            nav2_goal.pose.header.frame_id = "map"
-            
-        # Writes goal 
-        self.blackboard.set("/goal", nav2_goal)
-        
-        # Reads "/goal" and sends it to the server
-        super().initialise()
+from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 
 # From utbots_tasks/utbots_tasks/state/basic_nav.py/SetInitialPose
 class SetInitialPose(py_trees.behaviour.Behaviour):
@@ -53,7 +27,7 @@ class SetInitialPose(py_trees.behaviour.Behaviour):
         """
         self.node = kwargs.get('node')
         if self.node is None:
-            raise RuntimeError("Nó do ROS não foi passado no setup da árvore!")
+            raise RuntimeError("Node was not passed to the tree setup.")
         
         # Creation of the publisher
         self.publisher = self.node.create_publisher(
@@ -63,9 +37,7 @@ class SetInitialPose(py_trees.behaviour.Behaviour):
         )
 
     def update(self) -> py_trees.common.Status:
-        """
-        Executed when the node receives a 'tick'
-        """
+
         if self.publisher is None or self.node is None:
             self.logger.error("Publisher or node not initialized")
             return py_trees.common.Status.FAILURE
@@ -86,13 +58,25 @@ class SetInitialPose(py_trees.behaviour.Behaviour):
         
         return py_trees.common.Status.SUCCESS
 
+
 # From utbots_tasks/utbots_tasks/state/basic_nav.py/GetCurrentPoseState
-class GetCurrentPose(py_trees.behaviour.Behaviour):
-    def __init__(self, name: str = "GetCurrentPose", qos_profile=10):
+class GetCurrentPoseState(py_trees.behaviour.Behaviour):
+    def __init__(self, name: str = "GetCurrentPoseState", qos_profile=None, timeout_sec: float = 30.0):
         super().__init__(name=name)
-        self.qos_profile = qos_profile
         
-        # Register writing key on blackboard
+        # Qos SensorData if not informed
+        if qos_profile is None:
+            self.qos_profile = QoSProfile(
+                reliability=ReliabilityPolicy.BEST_EFFORT,
+                history=HistoryPolicy.KEEP_LAST,
+                depth=10
+            )
+        else:
+            self.qos_profile = qos_profile
+
+        self.timeout_sec = timeout_sec
+        self.start_time = None
+        
         self.blackboard = self.attach_blackboard_client(name=self.name)
         self.blackboard.register_key("current_pose", access=py_trees.common.Access.WRITE)
         
@@ -101,14 +85,9 @@ class GetCurrentPose(py_trees.behaviour.Behaviour):
         self.subscriber = None
 
     def setup(self, **kwargs):
-        """
-        Called once when the tree is initialized.
-        The ROS node is passed via kwargs from tree.setup().
-        """
         self.node = kwargs.get('node')
-        
         if self.node is None:
-            raise RuntimeError("ROS node was not passed to the tree setup")
+            raise RuntimeError("The node was not passed in the tree setup.")
             
         self.subscriber = self.node.create_subscription(
             Odometry,
@@ -118,64 +97,136 @@ class GetCurrentPose(py_trees.behaviour.Behaviour):
         )
 
     def initialise(self):
-        """
-        Called whenever the behavior is visited after being in a FAILURE, SUCCESS, or inactive state. 
-        Resets the flag to wait for a new message.
-        """
+        """Resets the states and records the time the search began."""
         self.msg_received = False
+        self.start_time = time.time()
 
     def monitor_handler(self, msg: Odometry):
-        """Subscriber callback"""
+        """Callback invoked when the odometry message arrives"""
         self.blackboard.current_pose = msg
         self.msg_received = True
 
     def update(self) -> py_trees.common.Status:
-        """
-        Called at every 'tick' of the tree
-        """
+        # If mesage received = success
         if self.msg_received:
             return py_trees.common.Status.SUCCESS
-        else:
-            # Continues executing (waiting) until the message arrives
-            return py_trees.common.Status.RUNNING
+
+        # Verifies timeout (abort)
+        if (time.time() - self.start_time) > self.timeout_sec:
+            self.node.get_logger().error(
+                f"[{self.name}] {self.timeout_sec}s timeout"
+            )
+            return py_trees.common.Status.FAILURE
+
+        # Waiting mesage
+        return py_trees.common.Status.RUNNING
+
+
+# From utbots_tasks/utbots_tasks/state/basic_nav.py/GoToState
+class GoToState(py_trees_ros.action_clients.FromBlackboard):
+    def __init__(self, name="Go To State"):
+        super().__init__(
+            name=name,
+            action_type=NavigateToPose,
+            action_name="/navigate_to_pose",
+            key="goal"  
+        )
+        
+        # Logs access to the necessary keys in Blackboard
+        self.blackboard.register_key(key="pose", access=py_trees.common.Access.READ)
+        self.blackboard.register_key(key="goal", access=py_trees.common.Access.WRITE)
+
+    def initialise(self):
+        # Verifies if pose exists
+        if not self.blackboard.exists("pose"):
+            self.node.get_logger().error(
+                f"[{self.name}] Key 'pose' was not found."
+            )
+            return
+
+        # Builds navigation goal
+        nav2_goal = NavigateToPose.Goal()
+        nav2_goal.pose.pose = self.blackboard.pose
+        nav2_goal.pose.header.frame_id = "map"
+        
+        # Adds the current ROS 2 node timestamp
+        if hasattr(self, 'node') and self.node is not None:
+            nav2_goal.pose.header.stamp = self.node.get_clock().now().to_msg()
+
+        # Saves it to the Blackboard and lets the parent class send it to the Action Server
+        self.blackboard.set("goal", nav2_goal)
+        
+        super().initialise()
+
 
 # From utbots_tasks/utbots_tasks/state/basic_nav.py/RotateInPlaceState
-class RotateInPlace(py_trees_ros.actions.ActionClient):
+# Native math functions
+def euler_to_quaternion(roll, pitch, yaw):
+    cy = math.cos(yaw * 0.5)
+    sy = math.sin(yaw * 0.5)
+    cp = math.cos(pitch * 0.5)
+    sp = math.sin(pitch * 0.5)
+    cr = math.cos(roll * 0.5)
+    sr = math.sin(roll * 0.5)
+
+    w = cr * cp * cy + sr * sp * sy
+    x = sr * cp * cy - cr * sp * sy
+    y = cr * sp * cy + sr * cp * sy
+    z = cr * cp * sy - sr * sp * cy
+    return [x, y, z, w]
+
+def multiply_quaternions(q1, q2):
+    x1, y1, z1, w1 = q1
+    x2, y2, z2, w2 = q2
+
+    w = w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2
+    x = w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2
+    y = w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2
+    z = w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2
+    return [x, y, z, w]
+
+class RotateInPlaceState(py_trees_ros.action_clients.FromBlackboard):
     def __init__(self, name: str = "RotateInPlace"):
         super().__init__(
             name=name,
             action_type=NavigateToPose,
             action_name="/navigate_to_pose",
-            generate_goal_fn=self.create_goal_handler
+            key="goal"
         )
         
-        self.blackboard = self.attach_blackboard_client(name=self.name)
         self.blackboard.register_key("rotate", access=py_trees.common.Access.READ)
         self.blackboard.register_key("current_pose", access=py_trees.common.Access.READ)
+        self.blackboard.register_key("goal", access=py_trees.common.Access.WRITE)
         
-    def create_goal_handler(self) -> NavigateToPose.Goal:
+    def initialise(self):
+        # Security check before accessing data
+        if not self.blackboard.exists("rotate") or not self.blackboard.exists("current_pose"):
+            if hasattr(self, 'node') and self.node is not None:
+                self.node.get_logger().error(f"[{self.name}] 'rotate' or 'current_pose' keys not found.")
+            return 
+
         try:
             degrees = self.blackboard.rotate
             current_pose = self.blackboard.current_pose
             
             radians = math.radians(degrees)
             pose = PoseStamped()
-            
             pose.header.frame_id = "odom"
             
-            # self.node is automatically bound to this behavior 
-            # when the tree.setup() method is invoked
-            pose.header.stamp = self.node.get_clock().now().to_msg()
+            if hasattr(self, 'node') and self.node is not None:
+                pose.header.stamp = self.node.get_clock().now().to_msg()
 
             pose.pose.position.x = current_pose.pose.pose.position.x
             pose.pose.position.y = current_pose.pose.pose.position.y
             pose.pose.position.z = 0.0
 
-            # Apply the rotation
+            # current guidance
             current_q = current_pose.pose.pose.orientation
             q_current = [current_q.x, current_q.y, current_q.z, current_q.w]
-            q_rotate = quaternion_from_euler(0, 0, radians)
-            q_new = quaternion_multiply(q_rotate, q_current)
+            
+            # Applies rotation
+            q_rotate = euler_to_quaternion(0, 0, radians)
+            q_new = multiply_quaternions(q_rotate, q_current)
 
             pose.pose.orientation.x = q_new[0]
             pose.pose.orientation.y = q_new[1]
@@ -184,74 +235,89 @@ class RotateInPlace(py_trees_ros.actions.ActionClient):
 
             goal = NavigateToPose.Goal()
             goal.pose = pose
-            return goal
+            
+            self.blackboard.set("goal", goal)
 
         except Exception as e:
-            # Safety check (in case setup() has not yet occurred)
             if hasattr(self, 'node') and self.node is not None:
-                self.node.get_logger().error(f"Could not compute goal: {e}")
-                
-            # py_trees.common.Status.FAILURE,
-            return None
+                self.node.get_logger().error(f"Error calculating rotation: {e}")
+            return # Stops execution in the event of a mathematical error
+            
+        # If everything succeeded
+        super().initialise()
 
-# From utbots_tasks/utbots_tasks/state/basic_nav.py/RotateInPlaceState
-class GoToWaypointState(py_trees_ros.actions.ActionClient):
+
+#  From utbots_tasks/utbots_tasks/state/basic_nav.py/GoToWaypointState
+class GoToWaypointState(py_trees_ros.action_clients.FromBlackboard):
     def __init__(self, name: str = "GoToWaypoint"):
         super().__init__(
             name=name,
             action_type=NavigateToPose,
             action_name="/navigate_to_pose",
-            generate_goal_fn=self.create_goal_handler
+            key="goal"
         )
         
-        self.blackboard = self.attach_blackboard_client(name=self.name)
         self.blackboard.register_key("waypoint_nametag", access=py_trees.common.Access.READ)
         self.blackboard.register_key("yaml_path", access=py_trees.common.Access.READ)
+        self.blackboard.register_key("goal", access=py_trees.common.Access.WRITE)
 
-    def create_goal_handler(self) -> NavigateToPose.Goal:
-        try:
-            nametag = self.blackboard.waypoint_nametag
-            yaml_path = self.blackboard.yaml_path
-        except KeyError:
-            return None
+    def initialise(self):
+    
+        if self.blackboard.exists("goal"):
+            self.blackboard.unset("goal")
+
+        if not self.blackboard.exists("waypoint_nametag") or not self.blackboard.exists("yaml_path"):
+            if hasattr(self, 'node') and self.node is not None:
+                self.node.get_logger().error(f"[{self.name}] 'waypoint_nametag' or 'yaml_path' not in Blackboard.")
+            return
+
+        nametag = self.blackboard.waypoint_nametag
+        yaml_path = self.blackboard.yaml_path
 
         if not nametag or not yaml_path:
-            return None
+            return
 
         try:
             with open(yaml_path, 'r') as file:
                 data = yaml.safe_load(file)
 
             waypoints = data.get('waypoints', {})
-            if nametag in waypoints:
-                pose_data = waypoints[nametag]
-                
-                pose_stamped = PoseStamped()
-                pose_stamped.header.frame_id = 'map'
-                
-                # Fills the timestamp with the current clock of the ROS node
-
+            
+            # Verifies if waypoint exists in yaml
+            if nametag not in waypoints:
                 if hasattr(self, 'node') and self.node is not None:
-                    pose_stamped.header.stamp = self.node.get_clock().now().to_msg()
+                    self.node.get_logger().error(f"[{self.name}] Waypoint '{nametag}' not found in YAML.")
+                return
 
-                # Position
-                pose_stamped.pose.position.x = float(pose_data['position']['x'])
-                pose_stamped.pose.position.y = float(pose_data['position']['y'])
-                pose_stamped.pose.position.z = float(pose_data['position']['z'])
+            # Constructs objetive 
+            pose_data = waypoints[nametag]
+            pose_stamped = PoseStamped()
+            pose_stamped.header.frame_id = 'map'
+            
+            if hasattr(self, 'node') and self.node is not None:
+                pose_stamped.header.stamp = self.node.get_clock().now().to_msg()
 
-                # Orientation
-                pose_stamped.pose.orientation.x = float(pose_data['orientation']['x'])
-                pose_stamped.pose.orientation.y = float(pose_data['orientation']['y'])
-                pose_stamped.pose.orientation.z = float(pose_data['orientation']['z'])
-                pose_stamped.pose.orientation.w = float(pose_data['orientation']['w'])
+            pose_stamped.pose.position.x = float(pose_data['position']['x'])
+            pose_stamped.pose.position.y = float(pose_data['position']['y'])
+            pose_stamped.pose.position.z = float(pose_data['position']['z'])
 
-                goal = NavigateToPose.Goal()
-                goal.pose = pose_stamped
-                return goal
+            pose_stamped.pose.orientation.x = float(pose_data['orientation']['x'])
+            pose_stamped.pose.orientation.y = float(pose_data['orientation']['y'])
+            pose_stamped.pose.orientation.z = float(pose_data['orientation']['z'])
+            pose_stamped.pose.orientation.w = float(pose_data['orientation']['w'])
+
+            goal = NavigateToPose.Goal()
+            goal.pose = pose_stamped
+            
+            self.blackboard.set("goal", goal)
 
         except Exception as e:
             if hasattr(self, 'node') and self.node is not None:
-                self.node.get_logger().error(f"Erro ao carregar o waypoint do YAML: {e}")
-            return None
+                self.node.get_logger().error(f"Error loading waypoint from YAML: {e}")
+            return
 
-        return None
+        super().initialise()
+
+
+
+

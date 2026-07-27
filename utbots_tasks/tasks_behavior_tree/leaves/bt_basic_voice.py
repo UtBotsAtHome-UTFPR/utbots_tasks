@@ -11,16 +11,19 @@ from utbots_actions.action import InterpretNLU
 from utbots_actions.action import TextToSpeech
 
 # From utbots_tasks/utbots_tasks/state/basic_voice.py/SendTTSState 
+# Uses TextToSpeech from utbots_dependencies/utbots_actions/action/TextToSpeech.action
 class SendTTS(py_trees.behaviour.Behaviour):
     """
     Behavior that sends a TextToSpeech goal to the /utbots/tts action server,
-    reading the text from the blackboard (key "text").
+    reading the text from the blackboard (key "text"). 
+    Status: RUNNING, SUCCESS or FAILURE. 
     """
 
     def __init__(self, node: Node):
         super().__init__("SendTTS")
         self.node = node
 
+        # Flags that monitor the goal flow
         self.goal_sent = False
         self.goal_done = False
         self.goal_accepted = False
@@ -37,32 +40,34 @@ class SendTTS(py_trees.behaviour.Behaviour):
         )
 
     def initialise(self):
-        # Resets flags each time the behavior status is RUNNING 
+        # Resets flags each time the behavior status is RUNNING (node is running)
         self.goal_sent = False
         self.goal_done = False
         self.goal_accepted = False
         self.result = None
         self.goal_handle = None
 
+    # Called every time a "tick" occurs, while the node is active
     def update(self) -> py_trees.common.Status:
 
-        # Wait until server exists
+        # Wait until server "utbots/tts" exists
         if not self.action_client.wait_for_server(timeout_sec=0.0):
             self.node.get_logger().info("Waiting for action server...")
             return py_trees.common.Status.RUNNING
         
-        # Send goal once
+        # Send goal once - reads string from blackboard, assembles the ros 
+        # message and dispatches the goal asynchronously
         if not self.goal_sent:
             goal_msg = TextToSpeech.Goal()
-            texto_msg = String()
-            texto_msg.data = str(self.blackboard.text)
-            goal_msg.text = texto_msg
+            text_msg = String()
+            text_msg.data = str(self.blackboard.text)
+            goal_msg.text = text_msg
             
             future = self.action_client.send_goal_async(goal_msg)
             future.add_done_callback(self.goal_response_callback)
             self.goal_sent = True
         
-        # Wait until result arrives
+        # If not finished talking, status RUNNING
         if not self.goal_done:
             return py_trees.common.Status.RUNNING
 
@@ -187,6 +192,8 @@ class CoquiTTS(py_trees.behaviour.Behaviour):
                 self.node.get_logger().info("Cancelling active TTS goal...")
                 self.goal_handle.cancel_goal_async()
 
+    # Called if server accepted (uses result_callback to monitor the audio) 
+    # or refused request (sets goal_done = True)
     def goal_response_callback(self, future):
         self.goal_handle = future.result()
 
@@ -200,6 +207,7 @@ class CoquiTTS(py_trees.behaviour.Behaviour):
         result_future = self.goal_handle.get_result_async()
         result_future.add_done_callback(self.result_callback)
 
+    # Called when the TTS server finishes the message. Sets goal_done = True
     def result_callback(self, future):
         self.result = future.result()
         self.goal_done = True
@@ -225,155 +233,162 @@ class CoquiTTSNode(Node):
 
 # From utbots_tasks/utbots_tasks/state/basic_voice.py/WhisperSTTState 
 class WhisperSTT(py_trees.behaviour.Behaviour):
-    def _init_(self, name: str, node) -> None:
-        super(WhisperSTT, self)._init_(name)
-        self.node = node
-        self.action_client = ActionClient(
-            self.node,
-            Transcription,
-            "/utbots/transcription",
-        )
 
-        self.goal = None
-        self.goal_handle = None
-        self.result_future = None
-        self.goal_future = None
-        self.blackboard = py_trees.blackboard.Client()
-        self.blackboard.register_key(
-            key="transcribed_text", access=py_trees.common.Access.WRITE
-        )
+  def _init_(self, name, node) -> None:
+    super(WhisperSTT, self)._init_(name)
+    self.node = node
+    self.action_client = ActionClient(
+        self.node,
+        Transcription,
+        "/utbots/transcription",
+    )
 
-    def initialise(self) -> None:
-        self.goal = Transcription.Goal()
+    self.goal = None
+    self.goal_handle = None
+    self.result_future = None
+    self.goal_future = None
+    self.blackboard = py_trees.blackboard.Client()
+    self.blackboard.register_key(
+        key="whispered", access=py_trees.common.Access.WRITE
+    )
+    self.blackboard.register_key(
+        key="nlu_input_text", access=py_trees.common.Access.WRITE
+    )
 
-        if not self.action_client.wait_for_server(timeout_sec=1.0):
-            self.node.get_logger().error(
-                f"[{self.name}] Transcription server offline!"
-            )
-            return
+  def initialise(self) -> None:
+    self.goal = Transcription.Goal()
 
-        self.goal_future = self.action_client.send_goal_async(self.goal)
+    if not self.action_client.wait_for_server(timeout_sec=1.0):
+      self.node.get_logger().error(
+          f"[{self.name}] Transcription server offline!"
+      )
+      return
 
-    def update(self) -> py_trees.common.Status:
-        if self.goal_future is None:
-            return py_trees.common.Status.FAILURE
+    self.goal_future = self.action_client.send_goal_async(self.goal)
 
-        if not self.goal_future.done():
-            return py_trees.common.Status.RUNNING
+  def update(self) -> py_trees.common.Status:
+    if self.goal_future is None:
+      return py_trees.common.Status.FAILURE
 
-        if self.goal_handle is None:
-            self.goal_handle = self.goal_future.result()
-            if not self.goal_handle.accepted:
-                return py_trees.common.Status.FAILURE
+    if not self.goal_future.done():
+      return py_trees.common.Status.RUNNING
 
-            self.result_future = self.goal_handle.get_result_async()
-            return py_trees.common.Status.RUNNING
+    if self.goal_handle is None:
+      self.goal_handle = self.goal_future.result()
+      if not self.goal_handle.accepted:
+        return py_trees.common.Status.FAILURE
 
-        if not self.result_future.done():
-            return py_trees.common.Status.RUNNING
+      self.result_future = self.goal_handle.get_result_async()
+      return py_trees.common.Status.RUNNING
 
-        result = self.result_future.result().result
-        self.blackboard.transcribed_text = result.text.data
+    if not self.result_future.done():
+      return py_trees.common.Status.RUNNING
 
-        return py_trees.common.Status.SUCCESS
+    result = self.result_future.result().result
 
-    def terminate(self, new_status: py_trees.common.Status) -> None:
-        self.goal = None
-        self.goal_future = None
-        self.goal_handle = None
-        self.result_future = None
+    transcribed_text = (
+        result.text.data if hasattr(result.text, "data") else str(result.text)
+    )
+    self.blackboard.whispered = transcribed_text
+    self.blackboard.nlu_input_text = transcribed_text  # Connects Whisper -> NLU
+
+    return py_trees.common.Status.SUCCESS
+
+  def terminate(self, new_status) -> None:
+    self.goal = None
+    self.goal_future = None
+    self.goal_handle = None
+    self.result_future = None
 
 # From utbots_tasks/utbots_tasks/state/basic_voice.py/NLUInference 
 class NLUInference(py_trees.behaviour.Behaviour):
-    def _init_(self, name: str, node, verbose: bool = False) -> None:
-        super(NLUInference, self)._init_(name)
-        self.verbose = verbose
-        self.node = node
-        self.action_client = ActionClient(
-            self.node,
-            InterpretNLU,
-            "/utbots/interpret_nlu",
-        )
-        self.goal_handle = None
-        self.goal = None
-        self.goal_future = None
-        self.response_future = None
 
-        self.blackboard = py_trees.blackboard.Client()
-        self.blackboard.register_key(
-            key="nlu_input_text", access=py_trees.common.Access.READ
-        )
-        self.blackboard.register_key(
-            key="nlu_output", access=py_trees.common.Access.WRITE
-        )
-        self.blackboard.register_key(
-            key="nlu_intent", access=py_trees.common.Access.WRITE
-        )
-        self.blackboard.register_key(
-            key="nlu_data", access=py_trees.common.Access.WRITE
-        )
-        self.blackboard.register_key(
-            key="nlu_chat", access=py_trees.common.Access.WRITE
-        )
+  def _init_(self, name, node, verbose=False) -> None:
+    super(NLUInference, self)._init_(name)
+    self.verbose = verbose
+    self.node = node
+    self.action_client = ActionClient(
+        self.node,
+        InterpretNLU,
+        "/utbots/interpret_nlu",
+    )
+    self.goal_handle = None
+    self.goal = None
+    self.goal_future = None
+    self.response_future = None
 
-    def initialise(self) -> None:
-        self.goal = InterpretNLU.Goal()
+    self.blackboard = py_trees.blackboard.Client()
+    self.blackboard.register_key(
+        key="nlu_input_text", access=py_trees.common.Access.READ
+    )
+    self.blackboard.register_key(
+        key="nlu_output", access=py_trees.common.Access.WRITE
+    )
+    self.blackboard.register_key(
+        key="nlu_intent", access=py_trees.common.Access.WRITE
+    )
+    self.blackboard.register_key(
+        key="nlu_data", access=py_trees.common.Access.WRITE
+    )
+    self.blackboard.register_key(
+        key="nlu_chat", access=py_trees.common.Access.WRITE
+    )
 
-        self.goal_handle = None
-        self.goal_future = None
-        self.response_future = None
+  def initialise(self):
+    self.goal = InterpretNLU.Goal()
+    self.goal_handle = None
+    self.goal_future = None
+    self.response_future = None
 
-        try:
-            self.goal.nlu_input.data = self.blackboard.nlu_input_text or ""
-        except AttributeError:
-            self.goal.nlu_input.data = ""
+    try:
+      self.goal.nlu_input.data = self.blackboard.nlu_input_text or ""
+    except AttributeError:
+      self.goal.nlu_input.data = ""
 
-        if not self.action_client.wait_for_server(timeout_sec=1.0):
-            if self.verbose:
-                self.node.get_logger().error(
-                    f"[{self.name}] NLU server offline!"
-                )
-            return
+    if not self.action_client.wait_for_server(timeout_sec=1.0):
+      if self.verbose:
+        self.node.get_logger().error(f"[{self.name}] NLU server offline!")
+      return
 
-        self.goal_future = self.action_client.send_goal_async(self.goal)
+    self.goal_future = self.action_client.send_goal_async(self.goal)
 
-    def update(self) -> py_trees.common.Status:
-        if self.goal_future is None:
-            return py_trees.common.Status.FAILURE
+  def update(self) -> py_trees.common.Status:
+    if self.goal_future is None:
+      return py_trees.common.Status.FAILURE
 
-        if not self.goal_future.done():
-            return py_trees.common.Status.RUNNING
+    if not self.goal_future.done():
+      return py_trees.common.Status.RUNNING
 
-        if self.goal_handle is None:
-            self.goal_handle = self.goal_future.result()
-            if not self.goal_handle.accepted:
-                return py_trees.common.Status.FAILURE
+    if self.goal_handle is None:
+      self.goal_handle = self.goal_future.result()
+      if not self.goal_handle.accepted:
+        return py_trees.common.Status.FAILURE
 
-            self.response_future = self.goal_handle.get_result_async()
-            return py_trees.common.Status.RUNNING
+      self.response_future = self.goal_handle.get_result_async()
+      return py_trees.common.Status.RUNNING
 
-        if not self.response_future.done():
-            return py_trees.common.Status.RUNNING
+    if not self.response_future.done():
+      return py_trees.common.Status.RUNNING
 
-        response = self.response_future.result().result
+    response = self.response_future.result().result
 
-        self.blackboard.nlu_output = response.nlu_output.data
-        self.blackboard.nlu_intent = response.task.data
-        self.blackboard.nlu_data = response.data.data
-        self.blackboard.nlu_chat = response.bot_response.data
+    self.blackboard.nlu_output = response.nlu_output.data
+    self.blackboard.nlu_intent = response.task.data
+    self.blackboard.nlu_data = response.data.data
+    self.blackboard.nlu_chat = response.bot_response.data
 
-        if self.verbose:
-            self.node.get_logger().info(
-                f"[{self.name}] NLU Intent: {self.blackboard.nlu_intent}"
-            )
-            self.node.get_logger().info(
-                f"[{self.name}] NLU Data: {self.blackboard.nlu_data}"
-            )
+    if self.verbose:
+      self.node.get_logger().info(
+          f"[{self.name}] NLU Intent: {self.blackboard.nlu_intent}"
+      )
+      self.node.get_logger().info(
+          f"[{self.name}] NLU Data: {self.blackboard.nlu_data}"
+      )
 
-        return py_trees.common.Status.SUCCESS
+    return py_trees.common.Status.SUCCESS
 
-    def terminate(self, new_status: py_trees.common.Status) -> None:
-        self.goal = None
-        self.goal_future = None
-        self.goal_handle = None
-        self.response_future = None
+  def terminate(self, new_status) -> None:
+    self.goal = None
+    self.goal_future = None
+    self.goal_handle = None
+    self.response_future = None
