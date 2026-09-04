@@ -8,7 +8,8 @@ from nav2_msgs.action import NavigateToPose
 from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped
 from nav_msgs.msg import Odometry
 from tf_transformations import quaternion_from_euler, quaternion_multiply
-from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
+from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, qos_profile_sensor_data
+from sensor_msgs.msg import LaserScan
 
 # From utbots_tasks/utbots_tasks/state/basic_nav.py/SetInitialPose
 class SetInitialPose(py_trees.behaviour.Behaviour):
@@ -317,6 +318,107 @@ class GoToWaypointState(py_trees_ros.action_clients.FromBlackboard):
             return
 
         super().initialise()
+
+
+class WaitDoorOpenState(py_trees.behaviour.Behaviour):
+    def __init__(self, name: str = "WaitDoorOpenState", timeout_sec: float = 30.0):
+        super().__init__(name=name)
+        
+        self.timeout_sec = timeout_sec
+        
+        # Variáveis de controle de tempo
+        self.start_time = None
+        self.door_open_time = None
+        
+        # Variáveis de status
+        self.door_detected = False
+        self.error_occurred = False
+
+        # Configuração do Blackboard
+        self.blackboard = self.attach_blackboard_client(name=self.name)
+        self.blackboard.register_key("log", access=py_trees.common.Access.WRITE)
+                
+        self.node = None
+        self.subscriber = None
+
+    def setup(self, **kwargs):
+        self.node = kwargs.get('node')
+        if self.node is None:
+            raise RuntimeError("O nó do ROS não foi passado no setup da árvore.")
+            
+        # qos_profile_sensor_data é o mais indicado para tópicos de alta frequência como o /scan
+        self.subscriber = self.node.create_subscription(
+            LaserScan,
+            "/scan",
+            self.monitor_handler,
+            qos_profile_sensor_data
+        )
+
+    def initialise(self):
+        """Reseta os estados sempre que o nó é iniciado na árvore."""
+        self.start_time = time.time()
+        self.door_open_time = None
+        self.door_detected = False
+        self.error_occurred = False
+        
+        if self.node:
+            self.node.get_logger().info(f"[{self.name}] Aguardando a porta abrir...")
+
+    def monitor_handler(self, msg: LaserScan):
+        """Callback do ROS: Apenas lê os dados e atualiza as flags internas."""
+        # Se já detectou ou deu erro, ignora as novas leituras
+        if self.door_detected or self.error_occurred:
+            return
+
+        try:
+            ranges = msg.ranges
+            size = len(ranges)
+            sub_vec_a = ranges[0:31]
+            sub_vec_b = ranges[size - 30:size - 1]
+            check_vec = sub_vec_a + sub_vec_b
+
+            # Verifica se mais de 45 feixes do laser medem mais que 1.5 metros
+            if len([i for i in check_vec if i > 1.5]) > 45:
+                self.blackboard.log = "Porta aberta detectada"
+                if self.node:
+                    self.node.get_logger().info(f"[{self.name}] {self.blackboard.log}!")
+                self.door_detected = True
+
+        except Exception as e:
+            self.blackboard.log = f"Erro ao processar o scan da porta: {e}"
+            if self.node:
+                self.node.get_logger().error(self.blackboard.log)
+            self.error_occurred = True
+
+    def update(self) -> py_trees.common.Status:
+        """Chamado a cada tick da árvore. Aqui decidimos o status."""
+        
+        # 1. Se ocorreu um erro no processamento do Laser
+        if self.error_occurred:
+            return py_trees.common.Status.FAILURE
+
+        # 2. Se a porta foi detectada aberta
+        if self.door_detected:
+            # Inicia o cronômetro de 5 segundos (não-bloqueante)
+            if self.door_open_time is None:
+                self.door_open_time = time.time()
+            
+            # Se já passaram 5 segundos desde a detecção, encerra com sucesso
+            if (time.time() - self.door_open_time) >= 5.0:
+                return py_trees.common.Status.SUCCESS
+            else:
+                # Continua rodando enquanto espera os 5 segundos passarem
+                return py_trees.common.Status.RUNNING
+
+        # 3. Verifica o Timeout Geral de 30 segundos
+        if (time.time() - self.start_time) > self.timeout_sec:
+            self.blackboard.log = "Timeout: A porta não abriu a tempo."
+            if self.node:
+                self.node.get_logger().warn(f"[{self.name}] {self.blackboard.log}")
+            return py_trees.common.Status.FAILURE
+
+        # Se não deu erro, não detectou a porta e não deu timeout, continua rodando (antigo CANCEL)
+        return py_trees.common.Status.RUNNING
 
 
 

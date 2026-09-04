@@ -10,7 +10,6 @@ def create_listen_and_understand_subtree(node) -> py_trees.behaviour.Behaviour:
         memory=True
     )
 
- 
     stt_leaf = WhisperSTT(
         name="1_Whisper_STT", 
         node=node
@@ -22,7 +21,6 @@ def create_listen_and_understand_subtree(node) -> py_trees.behaviour.Behaviour:
         verbose=True
     )
 
-   
     subtree.add_children([stt_leaf, nlu_leaf])
 
     return subtree
